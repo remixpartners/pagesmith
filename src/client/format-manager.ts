@@ -10,9 +10,10 @@ const FORMAT_TO_DEVICE: Record<DocFormat, string> = {
   '4:3': 'slide-4-3',
 };
 
-// Track the current format so the frame:load hook can re-inject vars
-let pendingFormat: { editor: Editor; format: DocFormat; deviceId: string } | null = null;
-let frameLoadHooked = false;
+// Track the current format per editor so the frame:load hook can re-inject vars
+type PendingFormat = { format: DocFormat; deviceId: string };
+const pendingFormats = new WeakMap<Editor, PendingFormat>();
+const hookedEditors = new WeakSet<Editor>();
 
 /** Main entry point — call after editor.setDevice() */
 export function applyFormat(editor: Editor, format: DocFormat): void {
@@ -20,19 +21,20 @@ export function applyFormat(editor: Editor, format: DocFormat): void {
   const meta = formatMeta[deviceId];
   if (!meta) return;
 
-  pendingFormat = { editor, format, deviceId };
+  pendingFormats.set(editor, { format, deviceId });
 
   applyCanvasFraming(editor, format, meta.framed);
   injectFormatVars(editor, format, meta);
   fitCanvasToFormat(editor);
 
   // Hook into frame load so vars are re-injected if iframe wasn't ready
-  if (!frameLoadHooked) {
-    frameLoadHooked = true;
+  if (!hookedEditors.has(editor)) {
+    hookedEditors.add(editor);
     editor.on('canvas:frame:load', () => {
-      if (!pendingFormat) return;
-      const m = formatMeta[pendingFormat.deviceId];
-      if (m) injectFormatVars(pendingFormat.editor, pendingFormat.format, m);
+      const pending = pendingFormats.get(editor);
+      if (!pending) return;
+      const m = formatMeta[pending.deviceId];
+      if (m) injectFormatVars(editor, pending.format, m);
     });
   }
 }

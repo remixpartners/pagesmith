@@ -13,6 +13,10 @@ export class CropOverlay {
   private iframeDoc: Document;
   private onDone: (result: CropResult | null) => void;
 
+  // Parent positioning state (restored on destroy)
+  private parentEl: HTMLElement | null = null;
+  private previousParentPosition: string | null = null;
+
   // Drag state
   private dragging = false;
   private resizing = false;
@@ -108,11 +112,13 @@ export class CropOverlay {
     });
 
     const doneBtn = this.iframeDoc.createElement('button');
+    doneBtn.type = 'button';
     doneBtn.textContent = 'Done';
     doneBtn.className = 'ps-crop-btn ps-crop-btn-done';
     doneBtn.addEventListener('click', () => this.confirm());
 
     const cancelBtn = this.iframeDoc.createElement('button');
+    cancelBtn.type = 'button';
     cancelBtn.textContent = 'Cancel';
     cancelBtn.className = 'ps-crop-btn ps-crop-btn-cancel';
     cancelBtn.addEventListener('click', () => this.cancel());
@@ -128,8 +134,13 @@ export class CropOverlay {
     this.container.appendChild(this.cropRect);
 
     // Insert into the iframe body
-    const parent = this.imgEl.offsetParent || this.iframeDoc.body;
-    (parent as HTMLElement).style.position = 'relative';
+    const parent = (this.imgEl.offsetParent || this.iframeDoc.body) as HTMLElement;
+    this.parentEl = parent;
+    const computed = this.iframeDoc.defaultView?.getComputedStyle(parent);
+    if (computed && computed.position === 'static') {
+      this.previousParentPosition = parent.style.position;
+      parent.style.position = 'relative';
+    }
     parent.appendChild(this.container);
 
     // Bind events on the iframe document
@@ -147,6 +158,11 @@ export class CropOverlay {
     this.container?.remove();
     this.container = null;
     this.cropRect = null;
+    if (this.parentEl && this.previousParentPosition !== null) {
+      this.parentEl.style.position = this.previousParentPosition;
+    }
+    this.parentEl = null;
+    this.previousParentPosition = null;
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
@@ -206,13 +222,15 @@ export class CropOverlay {
 
       if (dir.includes('e')) newW = Math.max(40, Math.min(this.startW + dx, maxW - this.startLeft));
       if (dir.includes('w')) {
-        newW = Math.max(40, this.startW - dx);
-        newL = Math.max(0, this.startLeft + (this.startW - newW));
+        const rightEdge = this.startLeft + this.startW;
+        newL = Math.max(0, Math.min(this.startLeft + dx, rightEdge - 40));
+        newW = rightEdge - newL;
       }
       if (dir.includes('s')) newH = Math.max(40, Math.min(this.startH + dy, maxH - this.startTop));
       if (dir.includes('n')) {
-        newH = Math.max(40, this.startH - dy);
-        newT = Math.max(0, this.startTop + (this.startH - newH));
+        const bottomEdge = this.startTop + this.startH;
+        newT = Math.max(0, Math.min(this.startTop + dy, bottomEdge - 40));
+        newH = bottomEdge - newT;
       }
 
       this.cropRect.style.width = `${newW}px`;
@@ -237,8 +255,8 @@ export class CropOverlay {
     const containerH = this.container.offsetHeight;
     const cropL = this.cropRect.offsetLeft;
     const cropT = this.cropRect.offsetTop;
-    const cropW = this.cropRect.offsetWidth;
-    const cropH = this.cropRect.offsetHeight;
+    const cropW = this.cropRect.clientWidth;
+    const cropH = this.cropRect.clientHeight;
 
     // Convert crop rect to object-position percentages
     const centerX = cropL + cropW / 2;
