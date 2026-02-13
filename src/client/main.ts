@@ -316,9 +316,9 @@ function askUnsavedChanges(filename: string): Promise<'save' | 'discard' | 'canc
     const saveBtn = document.createElement('button');
     saveBtn.className = 'pagesmith-modal-cancel';
     saveBtn.textContent = 'Save';
-    saveBtn.style.background = '#1a5276';
-    saveBtn.style.borderColor = '#4fc3f7';
-    saveBtn.style.color = '#fff';
+    saveBtn.style.background = 'rgba(212, 175, 55, 0.15)';
+    saveBtn.style.borderColor = '#D4AF37';
+    saveBtn.style.color = '#D4AF37';
 
     const cleanup = (result: 'save' | 'discard' | 'cancel') => {
       overlay.remove();

@@ -1,3 +1,15 @@
+:root {
+  --emir-black: #000000;
+  --emir-white: #ffffff;
+  --emir-gold: #D4AF37;
+  --emir-gold-light: #E5C54B;
+  --emir-gold-muted: #A8892B;
+  --emir-surface: #111111;
+  --emir-surface-light: #1a1a1a;
+  --emir-border: #333333;
+  --emir-text-muted: #999999;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -13,10 +25,11 @@ body {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: #333;
-  color: #fff;
+  background: var(--emir-surface);
+  color: var(--emir-white);
   padding: 10px 20px;
   border-radius: 6px;
+  border: 1px solid var(--emir-border);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
   z-index: 10000;
@@ -25,6 +38,7 @@ body {
 
 .pagesmith-toast-error {
   background: #c0392b;
+  border-color: #e74c3c;
 }
 
 @keyframes toast-in {
@@ -32,32 +46,41 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* GrapesJS overrides for a cleaner look */
+/* GrapesJS color overrides */
 .gjs-one-bg {
-  background-color: #1a1a2e;
+  background-color: var(--emir-surface);
 }
 
 .gjs-two-color {
-  color: #e0e0e0;
+  color: var(--emir-white);
 }
 
 .gjs-three-bg {
-  background-color: #16213e;
+  background-color: var(--emir-surface-light);
 }
 
 .gjs-four-color,
 .gjs-four-color-h:hover {
-  color: #4fc3f7;
+  color: var(--emir-gold);
 }
 
-/* Toolbar */
+/* Hide GrapesJS default panel bars — our toolbar replaces them */
+.gjs-pn-devices-c,
+.gjs-pn-commands,
+.gjs-pn-options,
+.gjs-pn-views {
+  display: none !important;
+}
+
+/* ── Toolbar ── */
+
 .pagesmith-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #0f0f23;
-  padding: 8px 16px;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--emir-black);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--emir-border);
   font-family: system-ui, -apple-system, sans-serif;
   position: fixed;
   top: 0;
@@ -75,48 +98,110 @@ body {
   gap: 8px;
 }
 
+.pagesmith-toolbar-right {
+  gap: 4px;
+}
+
 .pagesmith-logo {
   font-weight: 700;
-  font-size: 16px;
-  color: #4fc3f7;
+  font-size: 15px;
+  color: var(--emir-gold);
   margin-right: 12px;
+  letter-spacing: 0.5px;
 }
 
 .pagesmith-filename {
-  color: #e0e0e0;
-  font-size: 14px;
+  color: var(--emir-text-muted);
+  font-size: 13px;
 }
 
-.pagesmith-toolbar button {
-  background: #1a1a3e;
-  border: 1px solid #3a3a5e;
-  color: #e0e0e0;
-  padding: 6px 12px;
+/* Text buttons */
+.ps-btn {
+  background: transparent;
+  border: 1px solid var(--emir-border);
+  color: var(--emir-white);
+  padding: 5px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.pagesmith-toolbar button:hover {
-  background: #2a2a5e;
-  border-color: #4fc3f7;
+.ps-btn:hover {
+  border-color: var(--emir-gold);
+  background: rgba(212, 175, 55, 0.08);
 }
 
+/* Primary action button */
+.ps-btn-primary {
+  border-color: var(--emir-gold-muted);
+  color: var(--emir-gold);
+}
+
+.ps-btn-primary:hover {
+  border-color: var(--emir-gold);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--emir-gold-light);
+}
+
+/* Icon buttons */
+.ps-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--emir-text-muted);
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.ps-icon-btn:hover {
+  color: var(--emir-white);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ps-icon-btn.active {
+  color: var(--emir-gold);
+  border-color: var(--emir-gold-muted);
+  background: rgba(212, 175, 55, 0.1);
+}
+
+/* Button groups */
+.ps-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Separator */
+.ps-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--emir-border);
+  margin: 0 6px;
+}
+
+/* Format dropdown */
 .pagesmith-toolbar select {
-  background: #1a1a3e;
-  border: 1px solid #3a3a5e;
-  color: #e0e0e0;
+  background: var(--emir-black);
+  border: 1px solid var(--emir-border);
+  color: var(--emir-white);
   padding: 5px 8px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
   cursor: pointer;
   margin-left: 12px;
+  transition: border-color 0.15s;
 }
 
 .pagesmith-toolbar select:hover {
-  border-color: #4fc3f7;
+  border-color: var(--emir-gold);
 }
 
 /* Push GrapesJS below the toolbar */
@@ -125,11 +210,12 @@ body {
   height: calc(100vh - 48px);
 }
 
-/* Image picker modal */
+/* ── Modals ── */
+
 .pagesmith-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.7);
   z-index: 10001;
   display: flex;
   align-items: center;
@@ -137,22 +223,22 @@ body {
 }
 
 .pagesmith-modal {
-  background: #1a1a2e;
-  border: 1px solid #3a3a5e;
+  background: var(--emir-surface);
+  border: 1px solid var(--emir-border);
   border-radius: 8px;
   padding: 24px;
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
-  color: #e0e0e0;
+  color: var(--emir-white);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
 .pagesmith-modal h3 {
   margin: 0 0 16px;
   font-size: 18px;
-  color: #4fc3f7;
+  color: var(--emir-gold);
 }
 
 .pagesmith-image-grid {
@@ -172,7 +258,7 @@ body {
 }
 
 .pagesmith-image-option:hover {
-  border-color: #4fc3f7;
+  border-color: var(--emir-gold);
 }
 
 .pagesmith-image-option img {
@@ -199,22 +285,31 @@ body {
 
 .pagesmith-upload-label,
 .pagesmith-modal-cancel {
-  background: #1a1a3e;
-  border: 1px solid #3a3a5e;
-  color: #e0e0e0;
+  background: transparent;
+  border: 1px solid var(--emir-border);
+  color: var(--emir-white);
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .pagesmith-upload-label:hover,
 .pagesmith-modal-cancel:hover {
-  background: #2a2a5e;
-  border-color: #4fc3f7;
+  border-color: var(--emir-gold);
+  background: rgba(212, 175, 55, 0.08);
 }
 
+/* Image replace button (injected dynamically by plugin) */
 .pagesmith-replace-btn {
-  background: #1a5276 !important;
-  border-color: #4fc3f7 !important;
+  background: rgba(212, 175, 55, 0.15) !important;
+  border: 1px solid var(--emir-gold) !important;
+  color: var(--emir-gold) !important;
+  padding: 5px 12px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  margin-right: 4px;
 }
