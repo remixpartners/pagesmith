@@ -72,20 +72,25 @@ body {
   display: none !important;
 }
 
-/* Fix canvas layout — the hidden panel bar had top:40px + height:calc(100%-40px).
-   With it gone, the canvas must fill the full editor area. */
+/* Override GrapesJS layout variables — the hidden panel bar set --gjs-canvas-top
+   to ~40px. We zero it out and fix the sidebar width to 250px. */
+#gjs,
+.gjs-editor {
+  --gjs-canvas-top: 0px !important;
+  --gjs-left-width: 250px !important;
+}
+
+/* Belt-and-suspenders: also override canvas properties directly in case
+   GrapesJS JS sets inline styles */
 .gjs-cv-canvas {
   top: 0 !important;
   height: 100% !important;
 }
 
-/* Fix sidebar layout — the button bar above it is hidden so remove its padding
-   and ensure the container has proper dimensions */
+/* Fix sidebar layout — the button bar above it is hidden so remove its padding */
 .gjs-pn-views-container {
   padding-top: 0 !important;
   top: 0 !important;
-  width: 250px !important;
-  min-width: 250px !important;
   height: 100% !important;
   border-left: 1px solid var(--emir-border);
 }

@@ -76,6 +76,22 @@ export function createEditor(container: string): Editor {
   const devicesPanel = editor.Panels.getPanel('devices-c');
   if (devicesPanel) editor.Panels.removePanel('devices-c');
 
+  // Force canvas layout — zero out the panel bar offset that GrapesJS
+  // computes dynamically, since we've replaced the panels with our own toolbar.
+  const editorEl = editor.getEl();
+  if (editorEl) {
+    editorEl.style.setProperty('--gjs-canvas-top', '0px', 'important');
+    editorEl.style.setProperty('--gjs-left-width', '250px', 'important');
+  }
+  // Also directly fix the canvas element in case inline styles override CSS
+  editor.on('load', () => {
+    const canvas = editorEl?.querySelector('.gjs-cv-canvas') as HTMLElement;
+    if (canvas) {
+      canvas.style.setProperty('top', '0', 'important');
+      canvas.style.setProperty('height', '100%', 'important');
+    }
+  });
+
   // Setup custom toolbar, blocks, and plugins
   setupPanels(editor);
   setupBlocks(editor);
