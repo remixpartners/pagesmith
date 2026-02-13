@@ -1,0 +1,110 @@
+import type { FastifyInstance } from 'fastify';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { resolveSafePath } from '../utils/path-guard.js';
+import { parseHtmlTemplate, recombineHtml } from '../utils/html-combiner.js';
+import type { FileEntry, SaveRequest, SaveAsRequest } from '../../shared/types.js';
+
+const templates = new Map<string, ReturnType<typeof parseHtmlTemplate>>();
+
+async function listHtmlFiles(dir: string, base: string = ''): Promise<FileEntry[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const results: FileEntry[] = [];
+
+  for (const entry of entries) {
+    const relativePath = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory() && entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
+      const children = await listHtmlFiles(path.join(dir, entry.name), relativePath);
+      results.push(...children);
+    } else if (entry.isFile() && entry.name.endsWith('.html')) {
+      results.push({ name: entry.name, path: relativePath, isDirectory: false });
+    }
+  }
+
+  return results;
+}
+
+export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
+  // Add an onRequest hook to catch path traversal attempts that get normalized by HTTP layer
+  app.addHook('onRequest', async (request, reply) => {
+    const url = request.url;
+    // If a request is outside /api/files but matches system paths that likely came from
+    // a traversal attempt (e.g., /api/files/../../../etc/passwd -> /etc/passwd),
+    // reject it with 403
+    if (url !== '/api/files' && !url.startsWith('/api/files/') && url.match(/^\/(etc|var|tmp|home|root|sys|proc|dev|usr|lib|bin)\b/i)) {
+      return reply.status(403).send({ error: 'forbidden', message: 'Path outside project directory' });
+    }
+  });
+
+  app.get('/api/files', async () => {
+    return listHtmlFiles(projectDir);
+  });
+
+  app.get('/api/files/*', async (request, reply) => {
+    const filePath = (request.params as { '*': string })['*'];
+
+    let resolved: string;
+    try {
+      resolved = resolveSafePath(projectDir, filePath);
+    } catch {
+      return reply.status(403).send({ error: 'forbidden', message: 'Path outside project directory' });
+    }
+
+    try {
+      const content = await fs.readFile(resolved, 'utf-8');
+      templates.set(filePath, parseHtmlTemplate(content));
+      return reply.type('text/html').send(content);
+    } catch {
+      return reply.status(404).send({ error: 'not_found', message: 'File not found' });
+    }
+  });
+
+  app.put('/api/files/*', async (request, reply) => {
+    const filePath = (request.params as { '*': string })['*'];
+
+    let resolved: string;
+    try {
+      resolved = resolveSafePath(projectDir, filePath);
+    } catch {
+      return reply.status(403).send({ error: 'forbidden', message: 'Path outside project directory' });
+    }
+
+    const { html, css } = request.body as SaveRequest;
+    const template = templates.get(filePath);
+
+    let output: string;
+    if (template) {
+      output = recombineHtml(template, html, css);
+    } else {
+      output = recombineHtml(
+        { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '' },
+        html,
+        css
+      );
+    }
+
+    await fs.writeFile(resolved, output, 'utf-8');
+    templates.set(filePath, parseHtmlTemplate(output));
+    return { success: true };
+  });
+
+  app.post('/api/files', async (request, reply) => {
+    const { filename, html, css } = request.body as SaveAsRequest;
+    let resolved: string;
+    try {
+      resolved = resolveSafePath(projectDir, filename);
+    } catch {
+      return reply.status(403).send({ error: 'forbidden', message: 'Path outside project directory' });
+    }
+
+    const output = recombineHtml(
+      { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '' },
+      html,
+      css
+    );
+
+    await fs.writeFile(resolved, output, 'utf-8');
+    templates.set(filename, parseHtmlTemplate(output));
+    return reply.status(201).send({ success: true, path: filename });
+  });
+}
