@@ -72,10 +72,18 @@ body {
   display: none !important;
 }
 
+/* Fix canvas layout — the hidden panel bar had top:40px + height:calc(100%-40px).
+   With it gone, the canvas must fill the full editor area. */
+.gjs-cv-canvas {
+  top: 0 !important;
+  height: 100% !important;
+}
+
 /* Fix sidebar layout — the button bar above it is hidden so remove its padding
    and ensure the container has proper dimensions */
 .gjs-pn-views-container {
   padding-top: 0 !important;
+  top: 0 !important;
   width: 250px !important;
   min-width: 250px !important;
   height: 100% !important;
