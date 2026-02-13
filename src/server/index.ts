@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyMultipart from '@fastify/multipart';
