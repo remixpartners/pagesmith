@@ -64,13 +64,17 @@ body {
   color: var(--emir-gold);
 }
 
-/* Panels are removed via editor.Panels.removePanel() in editor.ts,
-   so GrapesJS recalculates canvas layout automatically.
-   We just need to fix the sidebar (views-container) which had 42px
-   padding for the now-removed button bar above it. */
+/* Override GrapesJS's hardcoded 40px top offset for removed panel bar */
+.gjs-cv-canvas {
+  top: 0 !important;
+  height: 100% !important;
+}
+
+/* Fix sidebar: remove padding for the now-removed button bar */
 .gjs-pn-views-container {
   padding-top: 0 !important;
   top: 0 !important;
+  height: 100% !important;
   border-left: 1px solid var(--emir-border);
 }
 
@@ -206,10 +210,12 @@ body {
   border-color: var(--emir-gold);
 }
 
-/* Push GrapesJS below the toolbar */
+/* Push GrapesJS below the toolbar.
+   GrapesJS sets inline style "height: 100%" on #gjs which computes to 0
+   because body has no explicit height. !important overrides the inline style. */
 #gjs {
   margin-top: 48px;
-  height: calc(100vh - 48px);
+  height: calc(100vh - 48px) !important;
 }
 
 /* ── Modals ── */

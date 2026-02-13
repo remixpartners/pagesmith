@@ -67,8 +67,7 @@ export function createEditor(container: string): Editor {
     },
   });
 
-  // Remove ALL default top-bar panels via API so GrapesJS recalculates
-  // canvas layout with zero top offset. Keep only views-container (sidebar).
+  // Remove ALL default top-bar panels via API.
   for (const id of ['devices-c', 'commands', 'options', 'views']) {
     if (editor.Panels.getPanel(id)) {
       editor.Panels.removePanel(id);
