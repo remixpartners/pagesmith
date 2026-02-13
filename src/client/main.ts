@@ -73,6 +73,31 @@ function loadHtmlContent(html: string, filename: string) {
         iframe.contentDocument.head.appendChild(node);
       }
     }
+
+    // Override CSS that hides content via JS (e.g., stacked slides with opacity:0).
+    // GrapesJS strips scripts, so JS-driven visibility never runs.
+    // This makes all elements visible and laid out vertically for editing.
+    const editorOverrides = iframe.contentDocument.createElement('style');
+    editorOverrides.id = 'pagesmith-editor-overrides';
+    editorOverrides.textContent = `
+      /* Make stacked/hidden slides visible for editing */
+      .slide, [class*="slide"] {
+        position: relative !important;
+        opacity: 1 !important;
+        transform: none !important;
+        pointer-events: auto !important;
+        display: block !important;
+        margin-bottom: 24px !important;
+      }
+      /* Make hidden elements visible */
+      [aria-hidden="true"] {
+        display: block !important;
+        opacity: 1 !important;
+      }
+      /* Remove animations that might hide content */
+      * { animation: none !important; }
+    `;
+    iframe.contentDocument.head.appendChild(editorOverrides);
   }
 
   currentFile = filename;

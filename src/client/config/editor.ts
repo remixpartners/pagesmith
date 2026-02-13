@@ -24,7 +24,6 @@ export function createEditor(container: string): Editor {
       styles: [],
       scripts: [],
     },
-    panels: { defaults: [] },
     styleManager: {
       sectors: [
         {
@@ -68,10 +67,16 @@ export function createEditor(container: string): Editor {
     },
   });
 
-  // Remove code view and export buttons from default panels
+  // Clean up default GrapesJS panels we don't need
+  // (keep views and views-container — they hold blocks/styles/layers/traits)
   editor.Panels.removeButton('options', 'export-template');
+  editor.Panels.removeButton('options', 'gjs-open-import-webpage');
 
-  // Setup custom panels, blocks, and plugins
+  // Remove the default device selector (we use our own dropdown)
+  const devicesPanel = editor.Panels.getPanel('devices-c');
+  if (devicesPanel) editor.Panels.removePanel('devices-c');
+
+  // Setup custom toolbar, blocks, and plugins
   setupPanels(editor);
   setupBlocks(editor);
   imageReplacePlugin(editor);
