@@ -5,6 +5,7 @@ import { devices } from './devices.js';
 import { setupPanels } from './panels.js';
 import { setupBlocks } from './blocks.js';
 import { imageToolsPlugin } from '../plugins/image-tools.js';
+import { containerImagePlugin } from '../plugins/container-image.js';
 
 export function createEditor(container: string): Editor {
   const editor = grapesjs.init({
@@ -78,6 +79,7 @@ export function createEditor(container: string): Editor {
   setupPanels(editor);
   setupBlocks(editor);
   imageToolsPlugin(editor);
+  containerImagePlugin(editor);
 
   return editor;
 }

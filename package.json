@@ -33,8 +33,10 @@
     "puppeteer": "^24.37.2"
   },
   "devDependencies": {
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^25.2.3",
     "concurrently": "^9.2.1",
+    "jsdom": "^27.0.1",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
