@@ -98,6 +98,24 @@ function loadHtmlContent(html: string, filename: string) {
       * { animation: none !important; }
     `;
     iframe.contentDocument.head.appendChild(editorOverrides);
+
+    // Re-inject scripts that GrapesJS stripped so JS-driven content renders.
+    // Extract from both <head> and <body> of the original HTML.
+    const scriptMatches = html.match(/<script[\s\S]*?<\/script>/gi) || [];
+    for (const tag of scriptMatches) {
+      const script = iframe.contentDocument.createElement('script');
+      const srcMatch = tag.match(/src=["']([^"']+)["']/);
+      if (srcMatch) {
+        // External script — resolve relative URLs against project base
+        script.src = srcMatch[1];
+      } else {
+        // Inline script — extract content
+        const content = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+        if (content && content[1].trim()) script.textContent = content[1];
+        else continue;
+      }
+      iframe.contentDocument.body.appendChild(script);
+    }
   }
 
   currentFile = filename;

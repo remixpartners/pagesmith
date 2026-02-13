@@ -48,21 +48,21 @@ function populateToolbar(editor: Editor) {
     </div>
     <div class="pagesmith-toolbar-right">
       <div class="ps-btn-group">
-        <button id="ps-undo" class="ps-icon-btn" title="Undo (Cmd+Z)">${icons.undo}</button>
-        <button id="ps-redo" class="ps-icon-btn" title="Redo (Cmd+Shift+Z)">${icons.redo}</button>
+        <button id="ps-undo" class="ps-icon-btn" data-tooltip="Undo (Cmd+Z)">${icons.undo}</button>
+        <button id="ps-redo" class="ps-icon-btn" data-tooltip="Redo (Cmd+Shift+Z)">${icons.redo}</button>
       </div>
       <div class="ps-separator"></div>
       <div class="ps-btn-group">
-        <button id="ps-sw-visibility" class="ps-icon-btn" title="Component outlines">${icons.outline}</button>
-        <button id="ps-preview" class="ps-icon-btn" title="Preview">${icons.eye}</button>
-        <button id="ps-fullscreen" class="ps-icon-btn" title="Fullscreen">${icons.fullscreen}</button>
+        <button id="ps-sw-visibility" class="ps-icon-btn" data-tooltip="Outlines">${icons.outline}</button>
+        <button id="ps-preview" class="ps-icon-btn" data-tooltip="Preview">${icons.eye}</button>
+        <button id="ps-fullscreen" class="ps-icon-btn" data-tooltip="Fullscreen">${icons.fullscreen}</button>
       </div>
       <div class="ps-separator"></div>
       <div class="ps-btn-group">
-        <button id="ps-open-sm" class="ps-icon-btn" title="Styles">${icons.styles}</button>
-        <button id="ps-open-tm" class="ps-icon-btn" title="Settings">${icons.settings}</button>
-        <button id="ps-open-layers" class="ps-icon-btn" title="Layers">${icons.layers}</button>
-        <button id="ps-open-blocks" class="ps-icon-btn" title="Blocks">${icons.blocks}</button>
+        <button id="ps-open-sm" class="ps-icon-btn" data-tooltip="Styles">${icons.styles}</button>
+        <button id="ps-open-tm" class="ps-icon-btn" data-tooltip="Settings">${icons.settings}</button>
+        <button id="ps-open-layers" class="ps-icon-btn" data-tooltip="Layers">${icons.layers}</button>
+        <button id="ps-open-blocks" class="ps-icon-btn" data-tooltip="Blocks">${icons.blocks}</button>
       </div>
       <div class="ps-separator"></div>
       <div class="ps-btn-group">
@@ -137,5 +137,10 @@ function populateToolbar(editor: Editor) {
       editor.on(`run:${cmd}`, () => btn.classList.add('active'));
       editor.on(`stop:${cmd}`, () => btn.classList.remove('active'));
     }
+  });
+
+  // Open the blocks panel by default so the sidebar is visible on load
+  editor.on('load', () => {
+    editor.runCommand('open-blocks');
   });
 }
