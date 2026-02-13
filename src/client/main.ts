@@ -215,6 +215,25 @@ async function handleSave() {
     isDirty = false;
     updateTitle();
     showToast('Saved');
+
+    // Sync back to EMIR if this is a proposal file
+    const proposalMatch = currentFile?.match(/proposal-(\d+)\.html/);
+    if (proposalMatch) {
+      const proposalId = proposalMatch[1];
+      const emirUrl = localStorage.getItem('emir-api-url') || 'http://localhost:8000';
+      const syncToken = localStorage.getItem(`emir-sync-token-${proposalId}`) || '';
+      const combinedHtml = recombineHtml();
+      fetch(`${emirUrl}/api/proposals/${proposalId}/import-html`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: combinedHtml, sync_token: syncToken }),
+      })
+        .then(res => {
+          if (res.ok) showToast('Synced to EMIR');
+          else showToast('EMIR sync: auth failed', true);
+        })
+        .catch(() => showToast('EMIR sync failed (offline?)', true));
+    }
   }
 }
 
@@ -418,8 +437,38 @@ formatSelect?.addEventListener('change', () => {
   setFormat(formatSelect.value as DocFormat);
 });
 
-// Auto-load first project file on startup
+// --- EMIR Integration: Read query params ---
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const syncToken = params.get('sync_token');
+  const emirApi = params.get('emir_api');
+  const file = params.get('file');
+
+  if (syncToken && file) {
+    const idMatch = file.match(/proposal-(\d+)\.html/);
+    if (idMatch) {
+      localStorage.setItem(`emir-sync-token-${idMatch[1]}`, syncToken);
+    }
+  }
+  if (emirApi) {
+    localStorage.setItem('emir-api-url', emirApi);
+  }
+})();
+
+// Auto-load: prefer ?file= query param, fallback to first project file
 (async () => {
+  const params = new URLSearchParams(window.location.search);
+  const requestedFile = params.get('file');
+
+  if (requestedFile) {
+    try {
+      await loadProjectFile(requestedFile);
+      return;
+    } catch {
+      console.warn(`Could not load requested file: ${requestedFile}`);
+    }
+  }
+
   const files = await api.listFiles();
   if (files.length > 0) {
     await loadProjectFile(files[0].path);
