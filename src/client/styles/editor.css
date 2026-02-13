@@ -103,6 +103,22 @@ body {
   border-color: #4fc3f7;
 }
 
+.pagesmith-toolbar select {
+  background: #1a1a3e;
+  border: 1px solid #3a3a5e;
+  color: #e0e0e0;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-left: 12px;
+}
+
+.pagesmith-toolbar select:hover {
+  border-color: #4fc3f7;
+}
+
 /* Push GrapesJS below the toolbar */
 #gjs {
   margin-top: 48px;

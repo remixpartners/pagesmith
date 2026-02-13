@@ -1,117 +1,212 @@
 import { createEditor } from './config/editor.js';
 import * as api from './api.js';
 
+type DocFormat = 'desktop' | 'a4' | '16:9' | '4:3';
+
 let currentFile: string | null = null;
 let isDirty = false;
-let originalHead = '';
+let originalHtml = '';
+let fileHandle: FileSystemFileHandle | null = null;
+let currentFormat: DocFormat = 'desktop';
 
 const editor = createEditor('#gjs');
 
+// --- Format Detection & Control ---
+
+function detectFormat(html: string): DocFormat {
+  // Check for slide-like patterns: viewport-sized sections, slide classes
+  if (/class="[^"]*slide/i.test(html) || /width:\s*13\.333in/i.test(html)) return '16:9';
+  if (/width:\s*10in;\s*height:\s*7\.5in/i.test(html)) return '4:3';
+  // Check for A4 patterns: page-break, print styles, A4 dimensions
+  if (/page-break/i.test(html) || /210mm/i.test(html) || /class="[^"]*page/i.test(html)) return 'a4';
+  return 'desktop';
+}
+
+function setFormat(format: DocFormat) {
+  currentFormat = format;
+  const deviceMap: Record<DocFormat, string> = {
+    'desktop': 'Desktop',
+    'a4': 'A4',
+    '16:9': 'Slide 16:9',
+    '4:3': 'Slide 4:3',
+  };
+  editor.setDevice(deviceMap[format]);
+  const select = document.getElementById('ps-format') as HTMLSelectElement | null;
+  if (select && select.value !== format) select.value = format;
+}
+
 // --- File Loading ---
 
-async function loadFile(filePath: string) {
-  if (isDirty && currentFile) {
-    const save = confirm(`Save changes to ${currentFile}?`);
-    if (save) {
-      await handleSave();
-    } else {
-      const discard = confirm('Discard unsaved changes?');
-      if (!discard) return;
-    }
-  }
-
-  const html = await api.readFile(filePath);
+function loadHtmlContent(html: string, filename: string) {
+  originalHtml = html;
 
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : html;
 
-  // Store original head for use in PDF export (preserves external CSS, fonts, meta)
-  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  originalHead = headMatch ? headMatch[1] : '';
-
-  // Only extract the pagesmith-styles block (written by previous saves).
-  // Original document styles are preserved in <head> by the server and
-  // should not be loaded into the GrapesJS style manager to avoid duplication.
+  // Only extract pagesmith-styles (original doc styles stay in head)
   const psMatcher = html.match(/<style\s+id="pagesmith-styles"[^>]*>([\s\S]*?)<\/style>/i);
   const css = psMatcher ? psMatcher[1] : '';
 
   editor.setComponents(bodyContent);
   editor.setStyle(css);
 
+  // Inject original document styles into the canvas iframe
   const iframe = editor.Canvas.getFrameEl();
   if (iframe?.contentDocument) {
+    // Set base URL for relative asset resolution
     let baseEl = iframe.contentDocument.querySelector('base');
     if (!baseEl) {
       baseEl = iframe.contentDocument.createElement('base');
       iframe.contentDocument.head.appendChild(baseEl);
     }
     baseEl.href = '/project/';
+
+    // Inject original <style> and <link> tags so the canvas renders correctly
+    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    if (headMatch) {
+      const headContent = headMatch[1];
+      // Extract style tags (but not pagesmith-styles) and link tags
+      const styleTags = headContent.match(/<style(?!\s+id="pagesmith-styles")[^>]*>[\s\S]*?<\/style>/gi) || [];
+      const linkTags = headContent.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi) || [];
+      for (const tag of [...styleTags, ...linkTags]) {
+        const node = iframe.contentDocument.createRange().createContextualFragment(tag);
+        iframe.contentDocument.head.appendChild(node);
+      }
+    }
   }
 
-  currentFile = filePath;
+  currentFile = filename;
   isDirty = false;
   updateTitle();
+
+  // Auto-detect and set format
+  setFormat(detectFormat(html));
+}
+
+async function loadProjectFile(filePath: string) {
+  const html = await api.readFile(filePath);
+  fileHandle = null; // Server-managed file
+  loadHtmlContent(html, filePath);
+}
+
+async function openFromDisk() {
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }],
+    });
+    fileHandle = handle;
+    const file = await handle.getFile();
+    const html = await file.text();
+    loadHtmlContent(html, handle.name);
+  } catch {
+    // User cancelled the picker
+  }
+}
+
+// --- HTML Recombination (client-side) ---
+
+function recombineHtml(): string {
+  const body = editor.getHtml();
+  const css = editor.getCss() ?? '';
+
+  if (originalHtml) {
+    let result = originalHtml;
+    // Replace body content (preserve body attributes)
+    result = result.replace(/(<body[^>]*>)[\s\S]*(<\/body>)/i, `$1\n${body}\n$2`);
+    // Remove existing pagesmith-styles
+    result = result.replace(/<style\s+id="pagesmith-styles"[^>]*>[\s\S]*?<\/style>\s*/i, '');
+    // Insert new pagesmith-styles before </head>
+    if (css) {
+      result = result.replace(/<\/head>/i, `<style id="pagesmith-styles">\n${css}\n</style>\n</head>`);
+    }
+    return result;
+  }
+
+  // Fallback: build from scratch
+  return `<!DOCTYPE html>\n<html>\n<head>\n<style id="pagesmith-styles">${css}</style>\n</head>\n<body>${body}</body>\n</html>`;
 }
 
 // --- Save ---
 
 async function handleSave() {
-  if (!currentFile) return;
-  const html = editor.getHtml();
-  const css = editor.getCss() ?? '';
-  await api.saveFile(currentFile, { html, css });
-  isDirty = false;
-  updateTitle();
-  showToast('Saved');
+  if (fileHandle) {
+    // Save back via File System Access API
+    try {
+      const html = recombineHtml();
+      const writable = await fileHandle.createWritable();
+      await writable.write(html);
+      await writable.close();
+      originalHtml = html;
+      isDirty = false;
+      updateTitle();
+      showToast('Saved');
+    } catch (err) {
+      showToast('Save failed', true);
+    }
+  } else if (currentFile) {
+    // Save via server
+    const html = editor.getHtml();
+    const css = editor.getCss() ?? '';
+    await api.saveFile(currentFile, { html, css });
+    isDirty = false;
+    updateTitle();
+    showToast('Saved');
+  }
 }
 
 async function handleSaveAs() {
-  const filename = prompt('Save as filename:', 'untitled.html');
-  if (!filename) return;
-  const html = editor.getHtml();
-  const css = editor.getCss() ?? '';
-  const path = await api.saveAsFile({ filename, html, css });
-  currentFile = path;
-  isDirty = false;
-  updateTitle();
-  showToast(`Saved as ${filename}`);
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: currentFile || 'untitled.html',
+        types: [{ description: 'HTML files', accept: { 'text/html': ['.html'] } }],
+      });
+      fileHandle = handle;
+      const html = recombineHtml();
+      const writable = await handle.createWritable();
+      await writable.write(html);
+      await writable.close();
+      originalHtml = html;
+      currentFile = handle.name;
+      isDirty = false;
+      updateTitle();
+      showToast(`Saved as ${handle.name}`);
+    } catch {
+      // User cancelled
+    }
+  } else {
+    // Fallback: download
+    const html = recombineHtml();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentFile || 'untitled.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded');
+  }
 }
 
 // --- PDF Export ---
 
 async function handleExportPdf() {
-  const fullHtml = buildFullHtml();
-  const format = prompt('Export format (a4, 16:9, 4:3):', 'a4') as 'a4' | '16:9' | '4:3' | null;
-  if (!format) return;
+  const fullHtml = recombineHtml();
+  const exportFormat = currentFormat === 'desktop' ? 'a4' : currentFormat;
 
   showToast('Exporting PDF...');
   try {
-    const blob = await api.exportPdf({ html: fullHtml, format });
+    const blob = await api.exportPdf({ html: fullHtml, format: exportFormat as 'a4' | '16:9' | '4:3' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = (currentFile?.replace('.html', '') || 'export') + '.pdf';
+    a.download = (currentFile?.replace(/\.html?$/i, '') || 'export') + '.pdf';
     a.click();
     URL.revokeObjectURL(url);
     showToast('PDF exported');
-  } catch (err) {
+  } catch {
     showToast('PDF export failed', true);
   }
-}
-
-function buildFullHtml(): string {
-  const body = editor.getHtml();
-  const css = editor.getCss() ?? '';
-  // Strip any existing pagesmith-styles from stored head to avoid duplication
-  const cleanHead = originalHead.replace(/<style\s+id="pagesmith-styles"[^>]*>[\s\S]*?<\/style>/i, '');
-  return `<!DOCTYPE html>
-<html>
-<head>
-${cleanHead}
-<style id="pagesmith-styles">${css}</style>
-</head>
-<body>${body}</body>
-</html>`;
 }
 
 // --- Dirty State ---
@@ -145,7 +240,9 @@ document.addEventListener('keydown', (e) => {
 
 function updateTitle() {
   const name = currentFile || 'PageSmith';
-  document.title = `${isDirty ? '● ' : ''}${name} — PageSmith`;
+  document.title = `${isDirty ? '\u25cf ' : ''}${name} \u2014 PageSmith`;
+  const el = document.getElementById('ps-filename');
+  if (el) el.textContent = `${isDirty ? '\u25cf ' : ''}${currentFile || 'No file loaded'}`;
 }
 
 function showToast(message: string, isError = false) {
@@ -159,40 +256,61 @@ function showToast(message: string, isError = false) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// --- File Picker (initial load) ---
+// --- File Picker ---
 
 async function showFilePicker() {
-  const files = await api.listFiles();
-  if (files.length === 0) {
-    showToast('No HTML files found in project directory', true);
+  if (isDirty && currentFile) {
+    const save = confirm(`Save changes to ${currentFile}?`);
+    if (save) await handleSave();
+    else if (!confirm('Discard unsaved changes?')) return;
+  }
+
+  // Use native file picker (File System Access API)
+  if ('showOpenFilePicker' in window) {
+    await openFromDisk();
     return;
   }
-  if (files.length === 1) {
-    await loadFile(files[0].path);
-  } else {
-    const choice = prompt(
-      'Choose a file to open:\n' + files.map((f, i) => `${i + 1}. ${f.path}`).join('\n'),
-      '1'
-    );
-    if (choice) {
-      const index = parseInt(choice, 10) - 1;
-      if (index >= 0 && index < files.length) {
-        await loadFile(files[index].path);
-      }
+
+  // Fallback: show project files list
+  const files = await api.listFiles();
+  if (files.length === 0) {
+    showToast('No HTML files found', true);
+    return;
+  }
+  const choice = prompt(
+    'Choose a file:\n' + files.map((f, i) => `${i + 1}. ${f.path}`).join('\n'),
+    '1'
+  );
+  if (choice) {
+    const index = parseInt(choice, 10) - 1;
+    if (index >= 0 && index < files.length) {
+      await loadProjectFile(files[index].path);
     }
   }
 }
 
 // --- Init ---
 
-showFilePicker();
+// Wire up format selector
+const formatSelect = document.getElementById('ps-format') as HTMLSelectElement | null;
+formatSelect?.addEventListener('change', () => {
+  setFormat(formatSelect.value as DocFormat);
+});
 
-// Export for use by plugins
+// Auto-load first project file on startup
+(async () => {
+  const files = await api.listFiles();
+  if (files.length > 0) {
+    await loadProjectFile(files[0].path);
+  }
+})();
+
+// Export for use by toolbar buttons and plugins
 (window as any).__pagesmith = {
   editor,
   handleSave,
   handleSaveAs,
   handleExportPdf,
-  loadFile,
+  loadFile: loadProjectFile,
   showFilePicker,
 };

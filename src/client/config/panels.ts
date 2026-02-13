@@ -62,6 +62,12 @@ function populateToolbar(editor: Editor) {
     </div>
     <div class="pagesmith-toolbar-center">
       <span id="ps-filename" class="pagesmith-filename">No file loaded</span>
+      <select id="ps-format" title="Document format">
+        <option value="desktop">Desktop</option>
+        <option value="a4">A4 Page</option>
+        <option value="16:9">Slide 16:9</option>
+        <option value="4:3">Slide 4:3</option>
+      </select>
     </div>
     <div class="pagesmith-toolbar-right">
       <button id="ps-undo" title="Undo (Cmd+Z)">Undo</button>
