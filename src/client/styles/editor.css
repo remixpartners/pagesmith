@@ -374,3 +374,30 @@ body {
   font-family: inherit;
   margin-right: 4px;
 }
+
+/* ── Crop overlay action buttons (inside canvas iframe, inline-styled by JS) ── */
+
+.ps-crop-btn {
+  padding: 4px 12px;
+  border: 1px solid #555;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  background: #222;
+  color: #fff;
+}
+
+.ps-crop-btn-done {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: #D4AF37;
+  color: #D4AF37;
+}
+
+.ps-crop-btn-cancel:hover {
+  border-color: #999;
+}
+
+.ps-crop-btn-done:hover {
+  background: rgba(212, 175, 55, 0.35);
+}
