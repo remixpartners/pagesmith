@@ -216,17 +216,21 @@ async function handleSave() {
     updateTitle();
     showToast('Saved');
 
-    // Sync back to EMIR if this is a proposal file
+    // Sync back to EMIR if this is a proposal file (via server proxy to avoid CORS)
     const proposalMatch = currentFile?.match(/proposal-(\d+)\.html/);
     if (proposalMatch) {
       const proposalId = proposalMatch[1];
       const emirUrl = localStorage.getItem('emir-api-url') || 'http://localhost:8000';
       const syncToken = localStorage.getItem(`emir-sync-token-${proposalId}`) || '';
       const combinedHtml = recombineHtml();
-      fetch(`${emirUrl}/api/proposals/${proposalId}/import-html`, {
+      fetch('/api/files/emir-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: combinedHtml, sync_token: syncToken }),
+        body: JSON.stringify({
+          url: `${emirUrl}/api/proposals/${proposalId}/import-html`,
+          html: combinedHtml,
+          sync_token: syncToken,
+        }),
       })
         .then(res => {
           if (res.ok) showToast('Synced to EMIR');

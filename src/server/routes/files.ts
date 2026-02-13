@@ -116,6 +116,29 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
   });
 
+  // Proxy sync to EMIR API (avoids CORS — server-to-server request)
+  app.post('/api/files/emir-sync', async (request, reply) => {
+    const { url, html, sync_token } = request.body as { url: string; html: string; sync_token: string };
+    if (!url || !html || !sync_token) {
+      return reply.status(400).send({ error: 'bad_request', message: 'url, html, and sync_token required' });
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, sync_token }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        return reply.status(res.status).send({ error: 'emir_error', message: body });
+      }
+      return { success: true };
+    } catch (err: any) {
+      return reply.status(502).send({ error: 'sync_failed', message: err.message });
+    }
+  });
+
   app.post('/api/files', async (request, reply) => {
     const { filename, html, css } = request.body as SaveAsRequest;
     let resolved: string;
