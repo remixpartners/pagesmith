@@ -9,7 +9,7 @@ import { imageReplacePlugin } from '../plugins/image-replace.js';
 export function createEditor(container: string): Editor {
   const editor = grapesjs.init({
     container,
-    height: '100vh',
+    height: '100%',
     width: 'auto',
     fromElement: false,
     storageManager: false,

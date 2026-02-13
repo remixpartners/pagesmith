@@ -1,11 +1,8 @@
 import type { Editor } from 'grapesjs';
 
 export function setupPanels(editor: Editor) {
-  // Top toolbar panel
-  editor.Panels.addPanel({
-    id: 'top-toolbar',
-    el: createToolbar(editor) as unknown as string,
-  });
+  // Populate the toolbar container that exists in index.html
+  populateToolbar(editor);
 
   // Left sidebar toggle buttons
   editor.Panels.addPanel({
@@ -53,10 +50,12 @@ export function setupPanels(editor: Editor) {
   });
 }
 
-function createToolbar(editor: Editor): HTMLElement {
-  const toolbar = document.createElement('div');
-  toolbar.className = 'pagesmith-toolbar';
-  toolbar.innerHTML = `
+function populateToolbar(editor: Editor) {
+  const container = document.getElementById('pagesmith-toolbar');
+  if (!container) return;
+
+  container.className = 'pagesmith-toolbar';
+  container.innerHTML = `
     <div class="pagesmith-toolbar-left">
       <span class="pagesmith-logo">PageSmith</span>
       <button id="ps-open" title="Open file">Open</button>
@@ -73,16 +72,19 @@ function createToolbar(editor: Editor): HTMLElement {
     </div>
   `;
 
-  // Wire up buttons after toolbar is in DOM
-  setTimeout(() => {
-    const ps = (window as any).__pagesmith;
-    toolbar.querySelector('#ps-open')?.addEventListener('click', () => ps?.showFilePicker());
-    toolbar.querySelector('#ps-save')?.addEventListener('click', () => ps?.handleSave());
-    toolbar.querySelector('#ps-save-as')?.addEventListener('click', () => ps?.handleSaveAs());
-    toolbar.querySelector('#ps-export-pdf')?.addEventListener('click', () => ps?.handleExportPdf());
-    toolbar.querySelector('#ps-undo')?.addEventListener('click', () => editor.UndoManager.undo());
-    toolbar.querySelector('#ps-redo')?.addEventListener('click', () => editor.UndoManager.redo());
-  }, 100);
-
-  return toolbar;
+  // Wire up buttons — use deferred lookup so __pagesmith is available
+  container.querySelector('#ps-open')?.addEventListener('click', () => {
+    (window as any).__pagesmith?.showFilePicker();
+  });
+  container.querySelector('#ps-save')?.addEventListener('click', () => {
+    (window as any).__pagesmith?.handleSave();
+  });
+  container.querySelector('#ps-save-as')?.addEventListener('click', () => {
+    (window as any).__pagesmith?.handleSaveAs();
+  });
+  container.querySelector('#ps-export-pdf')?.addEventListener('click', () => {
+    (window as any).__pagesmith?.handleExportPdf();
+  });
+  container.querySelector('#ps-undo')?.addEventListener('click', () => editor.UndoManager.undo());
+  container.querySelector('#ps-redo')?.addEventListener('click', () => editor.UndoManager.redo());
 }

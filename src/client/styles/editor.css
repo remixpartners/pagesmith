@@ -103,9 +103,10 @@ body {
   border-color: #4fc3f7;
 }
 
-/* Push GrapesJS canvas down below toolbar */
-.gjs-editor {
-  padding-top: 48px !important;
+/* Push GrapesJS below the toolbar */
+#gjs {
+  margin-top: 48px;
+  height: calc(100vh - 48px);
 }
 
 /* Image picker modal */
