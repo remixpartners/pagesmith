@@ -15,14 +15,24 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
   const format = options.format || 'a4';
   const pdfOptions = FORMAT_OPTIONS[format];
   const serverPort = options.serverPort || 3000;
+  const origin = `http://127.0.0.1:${serverPort}`;
 
-  const baseTag = `<base href="http://127.0.0.1:${serverPort}/project/">`;
-  const htmlWithBase = html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
+  // Inject <base> for HTML elements (img src, a href, etc.)
+  const baseTag = `<base href="${origin}/project/">`;
+  let prepared = html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
+
+  // CSS url() values in <style> blocks are NOT affected by <base> —
+  // they resolve relative to the document URL, which is about:blank
+  // when using setContent(). Rewrite /project/ URLs to absolute.
+  prepared = prepared.replace(
+    /url\(\s*(['"]?)\/project\//g,
+    `url($1${origin}/project/`
+  );
 
   const browser = await puppeteer.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    await page.setContent(htmlWithBase, { waitUntil: 'networkidle0', timeout: 25000 });
+    await page.setContent(prepared, { waitUntil: 'networkidle0', timeout: 25000 });
     const pdf = await page.pdf(pdfOptions);
     return Buffer.from(pdf);
   } finally {

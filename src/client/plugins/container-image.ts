@@ -82,12 +82,26 @@ export function containerImagePlugin(editor: Editor) {
     });
     toolbar.prepend(addImgBtn);
 
-    // "Add Background" button
+    // "Add Background" / "Remove Background" toggle button
+    const hasBg = !!(component.getStyle()['background-image'] || '').match(/url\(/);
     const bgBtn = document.createElement('button');
     bgBtn.id = 'ps-add-background';
     bgBtn.className = 'pagesmith-replace-btn';
-    bgBtn.textContent = 'Add Background';
+    bgBtn.textContent = hasBg ? 'Remove Background' : 'Add Background';
     bgBtn.addEventListener('click', async () => {
+      if (hasBg) {
+        // Remove background image
+        component.addStyle({
+          'background-image': 'none',
+          'background-size': '',
+          'background-position': '',
+          'background-repeat': '',
+        });
+        showToast('Background removed');
+        // Re-render buttons to reflect new state
+        addContainerButtons(component);
+        return;
+      }
       const file = await openFilePicker();
       if (!file) return;
       try {
@@ -99,6 +113,8 @@ export function containerImagePlugin(editor: Editor) {
           'background-position': 'center',
           'background-repeat': 'no-repeat',
         });
+        // Re-render buttons to show "Remove Background"
+        addContainerButtons(component);
       } catch {
         showToast('Background upload failed', true);
       }
