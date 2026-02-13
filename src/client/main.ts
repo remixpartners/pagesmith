@@ -3,6 +3,7 @@ import * as api from './api.js';
 
 let currentFile: string | null = null;
 let isDirty = false;
+let originalHead = '';
 
 const editor = createEditor('#gjs');
 
@@ -24,10 +25,15 @@ async function loadFile(filePath: string) {
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : html;
 
-  const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-  const css = styleMatches
-    .map(s => s.replace(/<\/?style[^>]*>/gi, ''))
-    .join('\n');
+  // Store original head for use in PDF export (preserves external CSS, fonts, meta)
+  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  originalHead = headMatch ? headMatch[1] : '';
+
+  // Only extract the pagesmith-styles block (written by previous saves).
+  // Original document styles are preserved in <head> by the server and
+  // should not be loaded into the GrapesJS style manager to avoid duplication.
+  const psMatcher = html.match(/<style\s+id="pagesmith-styles"[^>]*>([\s\S]*?)<\/style>/i);
+  const css = psMatcher ? psMatcher[1] : '';
 
   editor.setComponents(bodyContent);
   editor.setStyle(css);
@@ -94,14 +100,17 @@ async function handleExportPdf() {
 }
 
 function buildFullHtml(): string {
-  const html = editor.getHtml();
-  const css = editor.getCss();
+  const body = editor.getHtml();
+  const css = editor.getCss() ?? '';
+  // Strip any existing pagesmith-styles from stored head to avoid duplication
+  const cleanHead = originalHead.replace(/<style\s+id="pagesmith-styles"[^>]*>[\s\S]*?<\/style>/i, '');
   return `<!DOCTYPE html>
 <html>
 <head>
-<style>${css}</style>
+${cleanHead}
+<style id="pagesmith-styles">${css}</style>
 </head>
-<body>${html}</body>
+<body>${body}</body>
 </html>`;
 }
 

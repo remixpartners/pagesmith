@@ -50,41 +50,64 @@ async function openImagePicker(editor: Editor, component?: any) {
 
   const modal = document.createElement('div');
   modal.className = 'pagesmith-modal';
-  modal.innerHTML = `
-    <h3>Replace Image</h3>
-    <div class="pagesmith-image-grid">
-      ${assets.map(a => `
-        <div class="pagesmith-image-option" data-path="/project/${a.path}">
-          <img src="/project/${a.path}" alt="${a.name}" />
-          <span>${a.name}</span>
-        </div>
-      `).join('')}
-    </div>
-    <div class="pagesmith-modal-actions">
-      <label class="pagesmith-upload-label">
-        Upload New
-        <input type="file" accept="image/*" style="display:none" />
-      </label>
-      <button class="pagesmith-modal-cancel">Cancel</button>
-    </div>
-  `;
 
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  const heading = document.createElement('h3');
+  heading.textContent = 'Replace Image';
+  modal.appendChild(heading);
 
-  modal.querySelectorAll('.pagesmith-image-option').forEach(el => {
-    el.addEventListener('click', () => {
-      const imgPath = (el as HTMLElement).dataset.path;
-      if (imgPath && target) {
+  const grid = document.createElement('div');
+  grid.className = 'pagesmith-image-grid';
+
+  for (const a of assets) {
+    const imgPath = `/project/${a.path}`;
+    const option = document.createElement('div');
+    option.className = 'pagesmith-image-option';
+    option.dataset.path = imgPath;
+
+    const img = document.createElement('img');
+    img.src = imgPath;
+    img.alt = a.name;
+    option.appendChild(img);
+
+    const label = document.createElement('span');
+    label.textContent = a.name;
+    option.appendChild(label);
+
+    option.addEventListener('click', () => {
+      if (target) {
         target.set('src', imgPath);
         target.addAttributes({ src: imgPath });
       }
       overlay.remove();
     });
-  });
 
-  const fileInput = modal.querySelector('input[type="file"]') as HTMLInputElement;
-  fileInput?.addEventListener('change', async () => {
+    grid.appendChild(option);
+  }
+  modal.appendChild(grid);
+
+  const actions = document.createElement('div');
+  actions.className = 'pagesmith-modal-actions';
+
+  const uploadLabel = document.createElement('label');
+  uploadLabel.className = 'pagesmith-upload-label';
+  uploadLabel.textContent = 'Upload New';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+  uploadLabel.appendChild(fileInput);
+  actions.appendChild(uploadLabel);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'pagesmith-modal-cancel';
+  cancelBtn.textContent = 'Cancel';
+  actions.appendChild(cancelBtn);
+
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     try {
@@ -100,6 +123,6 @@ async function openImagePicker(editor: Editor, component?: any) {
     }
   });
 
-  modal.querySelector('.pagesmith-modal-cancel')?.addEventListener('click', () => overlay.remove());
+  cancelBtn.addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }

@@ -21,7 +21,14 @@ const app = Fastify({ logger: true });
 
 async function start() {
   // Plugins
-  await app.register(fastifyCors, { origin: true });
+  await app.register(fastifyCors, {
+    origin: [
+      `http://127.0.0.1:${port}`,
+      `http://localhost:${port}`,
+      'http://127.0.0.1:5173',
+      'http://localhost:5173',
+    ],
+  });
   await app.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } });
 
   // Serve project directory files (for CSS, images, etc. referenced in HTML)
@@ -52,8 +59,9 @@ async function start() {
   console.log(`\nPageSmith running at http://127.0.0.1:${port}`);
   console.log(`Project directory: ${projectDir}\n`);
 
-  // Auto-open browser (only if not in test)
-  if (process.env.NODE_ENV !== 'test') {
+  // Auto-open browser (skip in test and dev mode where Vite serves the frontend)
+  const isDevBackend = process.env.npm_lifecycle_event === 'dev:server';
+  if (process.env.NODE_ENV !== 'test' && !isDevBackend) {
     const open = (await import('open')).default;
     await open(`http://127.0.0.1:${port}`);
   }

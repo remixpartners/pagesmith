@@ -30,7 +30,12 @@ export function registerAssetRoutes(app: FastifyInstance, projectDir: string) {
       return reply.status(400).send({ error: 'bad_request', message: 'No file uploaded' });
     }
 
-    const ext = path.extname(data.filename).toLowerCase();
+    const safeName = path.basename(data.filename);
+    if (!safeName || safeName === '.' || safeName === '..') {
+      return reply.status(400).send({ error: 'bad_request', message: 'Invalid filename' });
+    }
+
+    const ext = path.extname(safeName).toLowerCase();
     if (!ALLOWED_EXTENSIONS.has(ext)) {
       return reply.status(400).send({
         error: 'bad_request',
@@ -40,10 +45,10 @@ export function registerAssetRoutes(app: FastifyInstance, projectDir: string) {
 
     await fs.mkdir(assetsDir, { recursive: true });
 
-    const filePath = path.join(assetsDir, data.filename);
+    const filePath = path.join(assetsDir, safeName);
     const buffer = await data.toBuffer();
     await fs.writeFile(filePath, buffer);
 
-    return reply.status(201).send({ success: true, path: `assets/${data.filename}` });
+    return reply.status(201).send({ success: true, path: `assets/${safeName}` });
   });
 }
