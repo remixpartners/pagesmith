@@ -10,8 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:3001',
-      '/project': 'http://127.0.0.1:3001',
+      '/api/': 'http://127.0.0.1:3001',
+      '/project/': 'http://127.0.0.1:3001',
     },
   },
 });
