@@ -4,7 +4,7 @@ export function setupPanels(editor: Editor) {
   // Top toolbar panel
   editor.Panels.addPanel({
     id: 'top-toolbar',
-    el: createToolbar(editor),
+    el: createToolbar(editor) as unknown as string,
   });
 
   // Left sidebar toggle buttons

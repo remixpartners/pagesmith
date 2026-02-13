@@ -52,7 +52,7 @@ async function loadFile(filePath: string) {
 async function handleSave() {
   if (!currentFile) return;
   const html = editor.getHtml();
-  const css = editor.getCss();
+  const css = editor.getCss() ?? '';
   await api.saveFile(currentFile, { html, css });
   isDirty = false;
   updateTitle();
@@ -63,7 +63,7 @@ async function handleSaveAs() {
   const filename = prompt('Save as filename:', 'untitled.html');
   if (!filename) return;
   const html = editor.getHtml();
-  const css = editor.getCss();
+  const css = editor.getCss() ?? '';
   const path = await api.saveAsFile({ filename, html, css });
   currentFile = path;
   isDirty = false;
