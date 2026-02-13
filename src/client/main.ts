@@ -281,13 +281,70 @@ function showToast(message: string, isError = false) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+function askUnsavedChanges(filename: string): Promise<'save' | 'discard' | 'cancel'> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'pagesmith-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'pagesmith-modal';
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Unsaved Changes';
+    modal.appendChild(heading);
+
+    const msg = document.createElement('p');
+    msg.textContent = `Save changes to ${filename}?`;
+    msg.style.margin = '0 0 20px';
+    msg.style.color = '#ccc';
+    modal.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.className = 'pagesmith-modal-actions';
+    actions.style.justifyContent = 'flex-end';
+    actions.style.gap = '8px';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'pagesmith-modal-cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    const discardBtn = document.createElement('button');
+    discardBtn.className = 'pagesmith-modal-cancel';
+    discardBtn.textContent = 'Discard';
+    discardBtn.style.color = '#e74c3c';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'pagesmith-modal-cancel';
+    saveBtn.textContent = 'Save';
+    saveBtn.style.background = '#1a5276';
+    saveBtn.style.borderColor = '#4fc3f7';
+    saveBtn.style.color = '#fff';
+
+    const cleanup = (result: 'save' | 'discard' | 'cancel') => {
+      overlay.remove();
+      resolve(result);
+    };
+
+    cancelBtn.addEventListener('click', () => cleanup('cancel'));
+    discardBtn.addEventListener('click', () => cleanup('discard'));
+    saveBtn.addEventListener('click', () => cleanup('save'));
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(discardBtn);
+    actions.appendChild(saveBtn);
+    modal.appendChild(actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  });
+}
+
 // --- File Picker ---
 
 async function showFilePicker() {
   if (isDirty && currentFile) {
-    const save = confirm(`Save changes to ${currentFile}?`);
-    if (save) await handleSave();
-    else if (!confirm('Discard unsaved changes?')) return;
+    const choice = await askUnsavedChanges(currentFile);
+    if (choice === 'cancel') return;
+    if (choice === 'save') await handleSave();
   }
 
   // Use native file picker (File System Access API)
