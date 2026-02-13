@@ -47,6 +47,7 @@ function loadHtmlContent(html: string, filename: string) {
   if (prevIframe?.contentDocument) {
     prevIframe.contentDocument.querySelectorAll('[data-pagesmithy]').forEach(el => el.remove());
     prevIframe.contentDocument.getElementById('pagesmith-editor-overrides')?.remove();
+    prevIframe.contentDocument.getElementById('pagesmith-format-vars')?.remove();
   }
 
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
@@ -79,6 +80,10 @@ function loadHtmlContent(html: string, filename: string) {
       const linkTags = headContent.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi) || [];
       for (const tag of [...styleTags, ...linkTags]) {
         const node = iframe.contentDocument.createRange().createContextualFragment(tag);
+        // Tag injected head nodes so they can be cleaned up on next file load
+        for (const child of node.children) {
+          (child as HTMLElement).dataset.pagesmithy = 'injected-head';
+        }
         iframe.contentDocument.head.appendChild(node);
       }
     }
@@ -109,22 +114,24 @@ function loadHtmlContent(html: string, filename: string) {
     iframe.contentDocument.head.appendChild(editorOverrides);
 
     // Re-inject scripts that GrapesJS stripped so JS-driven content renders.
-    // Preserve all original attributes (type, defer, async, module, etc.).
+    // Use DOMParser to safely parse attributes instead of fragile regex.
     const scriptMatches = html.match(/<script[\s\S]*?<\/script>/gi) || [];
+    const parser = new DOMParser();
     for (const tag of scriptMatches) {
+      const parsed = parser.parseFromString(tag, 'text/html');
+      const origScript = parsed.querySelector('script');
+      if (!origScript) continue;
+
       const script = iframe.contentDocument.createElement('script');
-      // Copy all attributes from the original tag
-      const attrMatches = tag.match(/<script([^>]*)>/i);
-      if (attrMatches && attrMatches[1]) {
-        const attrs = attrMatches[1].matchAll(/(\w[\w-]*)(?:=["']([^"']*)["'])?/g);
-        for (const [, name, value] of attrs) {
-          script.setAttribute(name, value ?? '');
-        }
+      // Copy all attributes from the DOMParser-parsed node
+      for (const attr of origScript.attributes) {
+        script.setAttribute(attr.name, attr.value);
       }
-      // Set inline content if no src
-      if (!script.src) {
-        const content = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-        if (content && content[1].trim()) script.textContent = content[1];
+      // Set inline content if no src attribute
+      const rawSrc = script.getAttribute('src')?.trim();
+      if (!rawSrc) {
+        const inline = origScript.textContent?.trim();
+        if (inline) script.textContent = inline;
         else continue;
       }
       script.dataset.pagesmithy = 'injected';

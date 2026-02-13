@@ -10,15 +10,31 @@ const FORMAT_TO_DEVICE: Record<DocFormat, string> = {
   '4:3': 'slide-4-3',
 };
 
+// Track the current format so the frame:load hook can re-inject vars
+let pendingFormat: { editor: Editor; format: DocFormat; deviceId: string } | null = null;
+let frameLoadHooked = false;
+
 /** Main entry point — call after editor.setDevice() */
 export function applyFormat(editor: Editor, format: DocFormat): void {
   const deviceId = FORMAT_TO_DEVICE[format];
   const meta = formatMeta[deviceId];
   if (!meta) return;
 
+  pendingFormat = { editor, format, deviceId };
+
   applyCanvasFraming(editor, format, meta.framed);
   injectFormatVars(editor, format, meta);
   fitCanvasToFormat(editor);
+
+  // Hook into frame load so vars are re-injected if iframe wasn't ready
+  if (!frameLoadHooked) {
+    frameLoadHooked = true;
+    editor.on('canvas:frame:load', () => {
+      if (!pendingFormat) return;
+      const m = formatMeta[pendingFormat.deviceId];
+      if (m) injectFormatVars(pendingFormat.editor, pendingFormat.format, m);
+    });
+  }
 }
 
 /** Toggle framing class + data attribute on the canvas wrapper */
@@ -49,7 +65,7 @@ function injectFormatVars(editor: Editor, format: DocFormat, meta: typeof format
     :root {
       --ps-format: "${format}";
       --ps-format-width: ${meta.widthPx}px;
-      --ps-format-height: ${meta.heightPx || 'auto'};
+      --ps-format-height: ${meta.heightPx ? `${meta.heightPx}px` : 'auto'};
       --ps-format-aspect: ${meta.aspect || 'auto'};
     }
   `;
