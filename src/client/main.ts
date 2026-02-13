@@ -1,4 +1,5 @@
 import { createEditor } from './config/editor.js';
+import { applyFormat } from './format-manager.js';
 import * as api from './api.js';
 
 type DocFormat = 'desktop' | 'a4' | '16:9' | '4:3';
@@ -31,6 +32,7 @@ function setFormat(format: DocFormat) {
     '4:3': 'Slide 4:3',
   };
   editor.setDevice(deviceMap[format]);
+  applyFormat(editor, format);
   const select = document.getElementById('ps-format') as HTMLSelectElement | null;
   if (select && select.value !== format) select.value = format;
 }
