@@ -103,6 +103,11 @@ function populateToolbar(editor: Editor) {
         if (btn.classList.contains('active')) {
           editor.stopCommand(cmd);
         } else {
+          // Stop the currently active view first — runCommand is a no-op
+          // if the same command is already active
+          viewCmds.forEach(c => {
+            if (c !== cmd) editor.stopCommand(c);
+          });
           editor.runCommand(cmd);
         }
       });

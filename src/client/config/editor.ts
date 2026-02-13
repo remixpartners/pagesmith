@@ -67,30 +67,13 @@ export function createEditor(container: string): Editor {
     },
   });
 
-  // Clean up default GrapesJS panels we don't need
-  // (keep views and views-container — they hold blocks/styles/layers/traits)
-  editor.Panels.removeButton('options', 'export-template');
-  editor.Panels.removeButton('options', 'gjs-open-import-webpage');
-
-  // Remove the default device selector (we use our own dropdown)
-  const devicesPanel = editor.Panels.getPanel('devices-c');
-  if (devicesPanel) editor.Panels.removePanel('devices-c');
-
-  // Force canvas layout — zero out the panel bar offset that GrapesJS
-  // computes dynamically, since we've replaced the panels with our own toolbar.
-  const editorEl = editor.getEl();
-  if (editorEl) {
-    editorEl.style.setProperty('--gjs-canvas-top', '0px', 'important');
-    editorEl.style.setProperty('--gjs-left-width', '250px', 'important');
-  }
-  // Also directly fix the canvas element in case inline styles override CSS
-  editor.on('load', () => {
-    const canvas = editorEl?.querySelector('.gjs-cv-canvas') as HTMLElement;
-    if (canvas) {
-      canvas.style.setProperty('top', '0', 'important');
-      canvas.style.setProperty('height', '100%', 'important');
+  // Remove ALL default top-bar panels via API so GrapesJS recalculates
+  // canvas layout with zero top offset. Keep only views-container (sidebar).
+  for (const id of ['devices-c', 'commands', 'options', 'views']) {
+    if (editor.Panels.getPanel(id)) {
+      editor.Panels.removePanel(id);
     }
-  });
+  }
 
   // Setup custom toolbar, blocks, and plugins
   setupPanels(editor);

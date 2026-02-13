@@ -40,6 +40,13 @@ function setFormat(format: DocFormat) {
 function loadHtmlContent(html: string, filename: string) {
   originalHtml = html;
 
+  // Clean up previously injected scripts/styles from the canvas iframe
+  const prevIframe = editor.Canvas.getFrameEl();
+  if (prevIframe?.contentDocument) {
+    prevIframe.contentDocument.querySelectorAll('[data-pagesmithy]').forEach(el => el.remove());
+    prevIframe.contentDocument.getElementById('pagesmith-editor-overrides')?.remove();
+  }
+
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : html;
 
@@ -100,20 +107,25 @@ function loadHtmlContent(html: string, filename: string) {
     iframe.contentDocument.head.appendChild(editorOverrides);
 
     // Re-inject scripts that GrapesJS stripped so JS-driven content renders.
-    // Extract from both <head> and <body> of the original HTML.
+    // Preserve all original attributes (type, defer, async, module, etc.).
     const scriptMatches = html.match(/<script[\s\S]*?<\/script>/gi) || [];
     for (const tag of scriptMatches) {
       const script = iframe.contentDocument.createElement('script');
-      const srcMatch = tag.match(/src=["']([^"']+)["']/);
-      if (srcMatch) {
-        // External script — resolve relative URLs against project base
-        script.src = srcMatch[1];
-      } else {
-        // Inline script — extract content
+      // Copy all attributes from the original tag
+      const attrMatches = tag.match(/<script([^>]*)>/i);
+      if (attrMatches && attrMatches[1]) {
+        const attrs = attrMatches[1].matchAll(/(\w[\w-]*)(?:=["']([^"']*)["'])?/g);
+        for (const [, name, value] of attrs) {
+          script.setAttribute(name, value ?? '');
+        }
+      }
+      // Set inline content if no src
+      if (!script.src) {
         const content = tag.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
         if (content && content[1].trim()) script.textContent = content[1];
         else continue;
       }
+      script.dataset.pagesmithy = 'injected';
       iframe.contentDocument.body.appendChild(script);
     }
   }
