@@ -1,17 +1,36 @@
+// src/client/plugins/image-tools.ts
 import type { Editor } from 'grapesjs';
+import { CropOverlay } from './crop-overlay.js';
+import type { CropResult } from './crop-overlay.js';
 import * as api from '../api.js';
 
-export function imageReplacePlugin(editor: Editor) {
+let activeCrop: CropOverlay | null = null;
+
+export function imageToolsPlugin(editor: Editor) {
+  // --- Override image component to enable resizable ---
+  editor.DomComponents.addType('image', {
+    model: {
+      defaults: {
+        resizable: {
+          ratioDefault: true,
+        },
+      },
+    },
+  });
+
+  // --- Toolbar buttons on image select ---
   editor.on('component:selected', (component) => {
     if (component.get('type') === 'image' || component.get('tagName') === 'img') {
-      addReplaceButton(editor, component);
+      addImageButtons(editor, component);
     } else {
-      removeReplaceButton();
+      removeImageButtons();
+      cancelCrop();
     }
   });
 
   editor.on('component:deselected', () => {
-    removeReplaceButton();
+    removeImageButtons();
+    cancelCrop();
   });
 
   editor.on('run:open-assets', () => {
@@ -20,24 +39,73 @@ export function imageReplacePlugin(editor: Editor) {
   });
 }
 
-function addReplaceButton(editor: Editor, component: any) {
-  removeReplaceButton();
+// --- Toolbar button management ---
 
-  const btn = document.createElement('button');
-  btn.id = 'ps-replace-image';
-  btn.className = 'pagesmith-replace-btn';
-  btn.textContent = 'Replace Image';
-  btn.addEventListener('click', () => openImagePicker(editor, component));
+function addImageButtons(editor: Editor, component: any) {
+  removeImageButtons();
 
   const toolbar = document.querySelector('.pagesmith-toolbar-right');
-  if (toolbar) {
-    toolbar.prepend(btn);
+  if (!toolbar) return;
+
+  // Crop button
+  const cropBtn = document.createElement('button');
+  cropBtn.id = 'ps-crop-image';
+  cropBtn.className = 'pagesmith-replace-btn';
+  cropBtn.textContent = 'Crop';
+  cropBtn.addEventListener('click', () => enterCropMode(editor, component));
+  toolbar.prepend(cropBtn);
+
+  // Replace button
+  const replaceBtn = document.createElement('button');
+  replaceBtn.id = 'ps-replace-image';
+  replaceBtn.className = 'pagesmith-replace-btn';
+  replaceBtn.textContent = 'Replace';
+  replaceBtn.addEventListener('click', () => openImagePicker(editor, component));
+  toolbar.prepend(replaceBtn);
+}
+
+function removeImageButtons() {
+  document.getElementById('ps-replace-image')?.remove();
+  document.getElementById('ps-crop-image')?.remove();
+}
+
+// --- Crop mode ---
+
+function enterCropMode(editor: Editor, component: any) {
+  cancelCrop();
+
+  const iframe = editor.Canvas.getFrameEl();
+  const doc = iframe?.contentDocument;
+  if (!doc) return;
+
+  // Find the actual <img> element in the iframe
+  const imgEl = component.getEl() as HTMLImageElement | null;
+  if (!imgEl || imgEl.tagName !== 'IMG') return;
+
+  activeCrop = new CropOverlay(imgEl, doc, (result: CropResult | null) => {
+    activeCrop = null;
+    if (!result) return;
+
+    // Apply crop as CSS on the GrapesJS component
+    component.addStyle({
+      'object-fit': 'cover',
+      'object-position': result.objectPosition,
+      width: result.width,
+      height: result.height,
+    });
+  });
+
+  activeCrop.show();
+}
+
+function cancelCrop() {
+  if (activeCrop) {
+    activeCrop.destroy();
+    activeCrop = null;
   }
 }
 
-function removeReplaceButton() {
-  document.getElementById('ps-replace-image')?.remove();
-}
+// --- Image picker modal (moved from image-replace.ts) ---
 
 async function openImagePicker(editor: Editor, component?: any) {
   const target = component || editor.getSelected();

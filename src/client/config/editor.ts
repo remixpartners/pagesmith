@@ -4,7 +4,7 @@ import styleBg from 'grapesjs-style-bg';
 import { devices } from './devices.js';
 import { setupPanels } from './panels.js';
 import { setupBlocks } from './blocks.js';
-import { imageReplacePlugin } from '../plugins/image-replace.js';
+import { imageToolsPlugin } from '../plugins/image-tools.js';
 
 export function createEditor(container: string): Editor {
   const editor = grapesjs.init({
@@ -77,7 +77,7 @@ export function createEditor(container: string): Editor {
   // Setup custom toolbar, blocks, and plugins
   setupPanels(editor);
   setupBlocks(editor);
-  imageReplacePlugin(editor);
+  imageToolsPlugin(editor);
 
   return editor;
 }
