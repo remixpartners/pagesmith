@@ -465,6 +465,23 @@ formatSelect?.addEventListener('change', () => {
       await loadProjectFile(requestedFile);
       return;
     } catch {
+      // File not found locally — try fetching from EMIR API
+      const emirApi = params.get('emir_api') || localStorage.getItem('emir-api-url');
+      const syncToken = params.get('sync_token');
+      const match = requestedFile.match(/proposal-(\d+)\.html/);
+
+      if (emirApi && syncToken && match) {
+        const proposalId = match[1];
+        const fetchUrl = `${emirApi}/api/proposals/${proposalId}/export/html-raw?sync_token=${encodeURIComponent(syncToken)}`;
+        try {
+          await api.fetchRemoteFile(fetchUrl, requestedFile);
+          await loadProjectFile(requestedFile);
+          return;
+        } catch (err) {
+          console.warn('Failed to fetch from EMIR API:', err);
+        }
+      }
+
       console.warn(`Could not load requested file: ${requestedFile}`);
     }
   }

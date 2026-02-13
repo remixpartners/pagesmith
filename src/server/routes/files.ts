@@ -88,6 +88,34 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     return { success: true };
   });
 
+  // Fetch remote HTML and save to project directory (for EMIR integration)
+  app.post('/api/files/fetch-remote', async (request, reply) => {
+    const { url, filename } = request.body as { url: string; filename: string };
+    if (!url || !filename) {
+      return reply.status(400).send({ error: 'bad_request', message: 'url and filename required' });
+    }
+
+    let resolved: string;
+    try {
+      resolved = resolveSafePath(projectDir, filename);
+    } catch {
+      return reply.status(403).send({ error: 'forbidden', message: 'Path outside project directory' });
+    }
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        return reply.status(502).send({ error: 'fetch_failed', message: `Remote returned ${res.status}` });
+      }
+      const content = await res.text();
+      await fs.writeFile(resolved, content, 'utf-8');
+      templates.set(filename, parseHtmlTemplate(content));
+      return { success: true, path: filename };
+    } catch (err: any) {
+      return reply.status(502).send({ error: 'fetch_failed', message: err.message });
+    }
+  });
+
   app.post('/api/files', async (request, reply) => {
     const { filename, html, css } = request.body as SaveAsRequest;
     let resolved: string;

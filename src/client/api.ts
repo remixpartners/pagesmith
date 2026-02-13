@@ -34,6 +34,15 @@ export async function saveAsFile(data: SaveAsRequest): Promise<string> {
   return result.path;
 }
 
+export async function fetchRemoteFile(url: string, filename: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/files/fetch-remote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, filename }),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch remote file: ${(await res.json()).message}`);
+}
+
 export async function exportPdf(data: PdfExportRequest): Promise<Blob> {
   const res = await fetch(`${BASE}/api/export/pdf`, {
     method: 'POST',
