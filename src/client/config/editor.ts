@@ -6,6 +6,7 @@ import { setupPanels } from './panels.js';
 import { setupBlocks } from './blocks.js';
 import { imageToolsPlugin } from '../plugins/image-tools.js';
 import { containerImagePlugin } from '../plugins/container-image.js';
+import { emirRevisionChatPlugin } from '../plugins/emir-revision-chat.js';
 
 export function createEditor(container: string): Editor {
   const editor = grapesjs.init({
@@ -80,6 +81,7 @@ export function createEditor(container: string): Editor {
   setupBlocks(editor);
   imageToolsPlugin(editor);
   containerImagePlugin(editor);
+  emirRevisionChatPlugin(editor);
 
   return editor;
 }

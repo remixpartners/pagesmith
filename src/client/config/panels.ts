@@ -21,6 +21,7 @@ const icons = {
   ),
   layers: svg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
   blocks: svg('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
+  chat: svg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
 };
 
 export function setupPanels(editor: Editor) {
@@ -61,6 +62,10 @@ function populateToolbar(editor: Editor) {
       <div class="ps-btn-group">
         <button id="ps-open-sm" class="ps-icon-btn" data-tooltip="Styles">${icons.styles}</button>
         <button id="ps-open-blocks" class="ps-icon-btn" data-tooltip="Blocks">${icons.blocks}</button>
+      </div>
+      <div class="ps-separator ps-revise-separator" style="display:none"></div>
+      <div class="ps-btn-group ps-revise-group" style="display:none">
+        <button id="ps-revise" class="ps-icon-btn ps-revise-btn" data-tooltip="Revise with AI">${icons.chat}</button>
       </div>
       <div class="ps-separator"></div>
       <div class="ps-btn-group">
@@ -141,6 +146,26 @@ function populateToolbar(editor: Editor) {
       editor.on(`stop:${cmd}`, () => btn.classList.remove('active'));
     }
   });
+
+  // Show "Revise" button only for EMIR proposals
+  const reviseBtn = container.querySelector('#ps-revise') as HTMLElement;
+  const reviseSep = container.querySelector('.ps-revise-separator') as HTMLElement;
+  const reviseGroup = container.querySelector('.ps-revise-group') as HTMLElement;
+
+  const hasEmirContext = !!(
+    new URLSearchParams(window.location.search).get('emir_api') ||
+    sessionStorage.getItem('emir-api-url')
+  );
+
+  if (hasEmirContext && reviseBtn && reviseSep && reviseGroup) {
+    reviseSep.style.display = '';
+    reviseGroup.style.display = '';
+    reviseBtn.addEventListener('click', () => {
+      const chat = (window as any).__emirRevisionChat;
+      if (chat) chat.toggle();
+      reviseBtn.classList.toggle('active');
+    });
+  }
 
   // Open the blocks panel by default so the sidebar is visible on load
   editor.on('load', () => {

@@ -76,3 +76,46 @@ export async function uploadAsset(file: File): Promise<string> {
   const result = await res.json();
   return result.path;
 }
+
+export interface EmirRevisionResponse {
+  html: string;
+  changes_summary: string;
+  sections_changed: string[];
+}
+
+export interface EmirMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  phase: string;
+  created_at: string;
+}
+
+export async function emirRevise(
+  url: string,
+  html: string,
+  message: string,
+  syncToken: string,
+): Promise<EmirRevisionResponse> {
+  const res = await fetch(`${BASE}/api/files/emir-revise`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, html, message, sync_token: syncToken }),
+  });
+  if (!res.ok) {
+    let msg = `status ${res.status}`;
+    try { msg = (await res.json()).message || msg; } catch { /* non-JSON */ }
+    throw new Error(`Revision failed: ${msg}`);
+  }
+  return res.json();
+}
+
+export async function emirGetMessages(url: string): Promise<EmirMessage[]> {
+  const res = await fetch(`${BASE}/api/files/emir-messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) return []; // Graceful fallback — empty history
+  return res.json();
+}

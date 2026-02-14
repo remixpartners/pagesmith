@@ -529,5 +529,7 @@ function isValidEmirUrl(raw: string): boolean {
   handleSaveAs,
   handleExportPdf,
   loadFile: loadProjectFile,
+  loadHtmlContent,
+  recombineHtml,
   showFilePicker,
 };

@@ -207,6 +207,75 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
   });
 
+  // Proxy revision request to EMIR API (avoids CORS — server-to-server request)
+  app.post('/api/files/emir-revise', async (request, reply) => {
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== 'object') {
+      return reply.status(400).send({ error: 'bad_request', message: 'JSON body required' });
+    }
+    const { url, html, message, sync_token } = body as {
+      url: string; html: string; message: string; sync_token: string;
+    };
+    if (!url || !html || !message || !sync_token) {
+      return reply.status(400).send({
+        error: 'bad_request',
+        message: 'url, html, message, and sync_token required',
+      });
+    }
+
+    try {
+      validateExternalUrl(url);
+    } catch (err: any) {
+      return reply.status(400).send({ error: 'bad_request', message: err.message });
+    }
+
+    try {
+      const res = await safeFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, message, sync_token }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => 'Unknown error');
+        return reply.status(res.status).send({ error: 'emir_error', message: errBody.slice(0, 1000) });
+      }
+      const result = await res.json();
+      return result;
+    } catch (err: any) {
+      return reply.status(502).send({ error: 'revision_failed', message: err.message });
+    }
+  });
+
+  // Proxy message fetch to EMIR API (avoids CORS)
+  app.post('/api/files/emir-messages', async (request, reply) => {
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== 'object') {
+      return reply.status(400).send({ error: 'bad_request', message: 'JSON body required' });
+    }
+    const { url } = body as { url: string };
+    if (!url) {
+      return reply.status(400).send({ error: 'bad_request', message: 'url required' });
+    }
+
+    try {
+      validateExternalUrl(url);
+    } catch (err: any) {
+      return reply.status(400).send({ error: 'bad_request', message: err.message });
+    }
+
+    try {
+      const res = await safeFetch(url);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => 'Unknown error');
+        return reply.status(res.status).send({ error: 'emir_error', message: errBody.slice(0, 1000) });
+      }
+      const result = await res.json();
+      return result;
+    } catch (err: any) {
+      return reply.status(502).send({ error: 'fetch_failed', message: err.message });
+    }
+  });
+
   app.post('/api/files', async (request, reply) => {
     const { filename, html, css } = request.body as SaveAsRequest;
     let resolved: string;
