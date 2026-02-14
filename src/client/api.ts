@@ -8,9 +8,17 @@ export async function listFiles(): Promise<FileEntry[]> {
   return res.json();
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function readFile(filePath: string): Promise<string> {
   const res = await fetch(`${BASE}/api/files/${filePath}`);
-  if (!res.ok) throw new Error(`Failed to read file (${res.status}): ${filePath}`);
+  if (!res.ok) throw new ApiError(`Failed to read file (${res.status}): ${filePath}`, res.status);
   return res.text();
 }
 
@@ -92,7 +100,8 @@ export interface EmirMessage {
 }
 
 export async function emirRevise(
-  url: string,
+  emirApi: string,
+  proposalId: string,
   html: string,
   message: string,
   syncToken: string,
@@ -100,7 +109,7 @@ export async function emirRevise(
   const res = await fetch(`${BASE}/api/files/emir-revise`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url, html, message, sync_token: syncToken }),
+    body: JSON.stringify({ emir_api: emirApi, proposal_id: proposalId, html, message, sync_token: syncToken }),
   });
   if (!res.ok) {
     let msg = `status ${res.status}`;
@@ -110,11 +119,11 @@ export async function emirRevise(
   return res.json();
 }
 
-export async function emirGetMessages(url: string): Promise<EmirMessage[]> {
+export async function emirGetMessages(emirApi: string, proposalId: string, syncToken: string): Promise<EmirMessage[]> {
   const res = await fetch(`${BASE}/api/files/emir-messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ emir_api: emirApi, proposal_id: proposalId, sync_token: syncToken }),
   });
   if (!res.ok) return []; // Graceful fallback — empty history
   return res.json();

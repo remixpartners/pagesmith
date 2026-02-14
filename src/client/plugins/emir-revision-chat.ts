@@ -12,20 +12,18 @@ interface EmirContext {
 function getEmirContext(): EmirContext | null {
   const params = new URLSearchParams(window.location.search);
   const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
-  const syncToken = params.get('sync_token');
   const file = params.get('file');
 
-  if (!emirApi || !syncToken || !file) return null;
+  if (!emirApi || !file) return null;
 
   const match = file.match(/proposal-(\d+)\.html/);
   if (!match) return null;
 
-  // Also check sessionStorage for token (in case page was navigated)
-  const storedToken = sessionStorage.getItem(`emir-sync-token-${match[1]}`);
-  const token = syncToken || storedToken;
-  if (!token) return null;
+  // Resolve token from query params OR sessionStorage (for page reloads/navigation)
+  const syncToken = params.get('sync_token') || sessionStorage.getItem(`emir-sync-token-${match[1]}`);
+  if (!syncToken) return null;
 
-  return { emirApi, syncToken: token, proposalId: match[1] };
+  return { emirApi, syncToken, proposalId: match[1] };
 }
 
 function showToast(message: string, isError = false) {
@@ -161,8 +159,7 @@ export function emirRevisionChatPlugin(editor: Editor) {
 
     setLoading(true);
     try {
-      const reviseUrl = `${ctx.emirApi}/api/proposals/${ctx.proposalId}/revise-html`;
-      const result = await api.emirRevise(reviseUrl, currentHtml, message, ctx.syncToken);
+      const result = await api.emirRevise(ctx.emirApi, ctx.proposalId, currentHtml, message, ctx.syncToken);
 
       // Add assistant message
       const assistantMsg: EmirMessage = {
@@ -247,10 +244,9 @@ export function emirRevisionChatPlugin(editor: Editor) {
   async function loadHistory() {
     if (!ctx) return;
     try {
-      const url = `${ctx.emirApi}/api/proposals/${ctx.proposalId}/messages/external?sync_token=${encodeURIComponent(ctx.syncToken)}&phase=revision`;
-      const history = await api.emirGetMessages(url);
-      if (history.length > 0) {
-        messages.length = 0;
+      const history = await api.emirGetMessages(ctx.emirApi, ctx.proposalId, ctx.syncToken);
+      // Only merge history if user hasn't sent messages while we were loading
+      if (history.length > 0 && messages.length === 0) {
         messages.push(...history);
         renderMessages();
       }

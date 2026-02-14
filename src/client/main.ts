@@ -493,7 +493,7 @@ function isValidEmirUrl(raw: string): boolean {
       return;
     } catch (err: any) {
       // Only attempt EMIR remote fetch on 404 (file not found), not other errors
-      const is404 = err?.message?.includes('404') || err?.message?.includes('not found');
+      const is404 = err?.status === 404;
       if (is404) {
         const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
         const syncToken = params.get('sync_token');

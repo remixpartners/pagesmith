@@ -2,3 +2,52 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Credentials & keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ppk
+id_rsa*
+credentials.json
+service-account*.json
+secrets.json
+secrets.yaml
+
+# Auth files
+.npmrc
+.netrc
+.htpasswd
+
+# AWS & cloud
+.aws/
+terraform.tfstate*
+*.tfvars
+
+# Database
+*.sqlite
+*.db
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backups
+*.bak
+*.old
+*.orig

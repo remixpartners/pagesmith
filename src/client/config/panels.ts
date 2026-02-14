@@ -147,24 +147,34 @@ function populateToolbar(editor: Editor) {
     }
   });
 
-  // Show "Revise" button only for EMIR proposals
+  // Show "Revise" button only when full EMIR chat context is available
   const reviseBtn = container.querySelector('#ps-revise') as HTMLElement;
   const reviseSep = container.querySelector('.ps-revise-separator') as HTMLElement;
   const reviseGroup = container.querySelector('.ps-revise-group') as HTMLElement;
 
-  const hasEmirContext = !!(
-    new URLSearchParams(window.location.search).get('emir_api') ||
-    sessionStorage.getItem('emir-api-url')
-  );
+  const params = new URLSearchParams(window.location.search);
+  const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
+  const file = params.get('file');
+  const syncToken = params.get('sync_token') || (file?.match(/proposal-(\d+)/)?.[1] ? sessionStorage.getItem(`emir-sync-token-${file.match(/proposal-(\d+)/)?.[1]}`) : null);
+  const hasFullEmirContext = !!(emirApi && file && syncToken && /proposal-\d+\.html/.test(file));
 
-  if (hasEmirContext && reviseBtn && reviseSep && reviseGroup) {
+  if (hasFullEmirContext && reviseBtn && reviseSep && reviseGroup) {
     reviseSep.style.display = '';
     reviseGroup.style.display = '';
     reviseBtn.addEventListener('click', () => {
       const chat = (window as any).__emirRevisionChat;
-      if (chat) chat.toggle();
-      reviseBtn.classList.toggle('active');
+      if (!chat) return; // Plugin not loaded — don't toggle blind state
+      chat.toggle();
     });
+    // Sync button active state from panel visibility via MutationObserver
+    const syncReviseButtonState = () => {
+      const panel = document.getElementById('emir-revision-panel');
+      const isOpen = panel?.classList.contains('emir-revision-panel-open') ?? false;
+      reviseBtn.classList.toggle('active', isOpen);
+    };
+    // Observe the body for panel open/close class changes
+    const observer = new MutationObserver(syncReviseButtonState);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   }
 
   // Open the blocks panel by default so the sidebar is visible on load

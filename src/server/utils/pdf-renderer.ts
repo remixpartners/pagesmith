@@ -35,6 +35,11 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
     (_match, styleVal) =>
       `style="${styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`)}"`
   );
+  prepared = prepared.replace(
+    /style='([^']*)'/gi,
+    (_match, styleVal) =>
+      `style='${styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`)}'`
+  );
 
   const browser = await puppeteer.launch({ headless: true });
   try {
