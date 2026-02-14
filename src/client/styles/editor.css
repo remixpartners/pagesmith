@@ -401,3 +401,332 @@ body {
 .ps-crop-btn-done:hover {
   background: rgba(212, 175, 55, 0.35);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SIDEBAR PANEL OVERRIDES
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Hide stray GrapesJS Device dropdown ── */
+.gjs-pn-devices-c,
+.gjs-pn-panel.gjs-pn-devices-c {
+  display: none !important;
+}
+
+/* ── Sidebar container ── */
+.gjs-pn-views-container {
+  background: var(--emir-surface) !important;
+  font-family: system-ui, -apple-system, sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: var(--emir-border) transparent;
+}
+
+/* ── Blocks panel ── */
+
+/* 3-column compact grid for blocks within each category */
+.gjs-blocks-c {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  padding: 8px 12px 12px !important;
+}
+
+/* Block items */
+.gjs-block {
+  width: auto !important;
+  min-height: auto !important;
+  padding: 10px 4px !important;
+  margin: 0 !important;
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 4px !important;
+  cursor: grab !important;
+  transition: border-color 0.15s, background 0.15s !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.gjs-block:hover {
+  border-color: var(--emir-gold) !important;
+  background: rgba(212, 175, 55, 0.06) !important;
+}
+
+/* Block icons — smaller */
+.gjs-block svg,
+.gjs-block__media svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.gjs-block__media {
+  color: var(--emir-text-muted) !important;
+}
+
+.gjs-block:hover .gjs-block__media {
+  color: var(--emir-gold) !important;
+}
+
+/* Block labels */
+.gjs-block-label {
+  font-size: 10px !important;
+  color: var(--emir-text-muted) !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  padding: 0 !important;
+}
+
+.gjs-block:hover .gjs-block-label {
+  color: var(--emir-white) !important;
+}
+
+/* Block category headers */
+.gjs-block-categories .gjs-block-category {
+  background: transparent !important;
+  border-bottom: 1px solid var(--emir-border) !important;
+}
+
+.gjs-block-category .gjs-title {
+  background: transparent !important;
+  border: none !important;
+  padding: 10px 12px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.12em !important;
+  color: var(--emir-gold) !important;
+  cursor: pointer !important;
+}
+
+.gjs-block-category .gjs-title:hover {
+  color: var(--emir-gold-light) !important;
+}
+
+/* ── Styles panel (Style Manager) ── */
+
+/* Class selector area */
+.gjs-clm-tags {
+  padding: 10px 12px !important;
+  background: var(--emir-surface) !important;
+  border-bottom: 1px solid var(--emir-border) !important;
+}
+
+.gjs-clm-tags .gjs-clm-header {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--emir-text-muted) !important;
+  margin-bottom: 6px !important;
+}
+
+/* Class tag pills */
+.gjs-clm-tags #gjs-clm-tags-field {
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 4px !important;
+  padding: 4px 6px !important;
+  min-height: 30px !important;
+}
+
+.gjs-clm-tags #gjs-clm-tags-field:focus-within {
+  border-color: var(--emir-gold) !important;
+}
+
+.gjs-clm-tag {
+  background: rgba(212, 175, 55, 0.12) !important;
+  border: 1px solid var(--emir-gold-muted) !important;
+  border-radius: 3px !important;
+  color: var(--emir-gold) !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+}
+
+.gjs-clm-tag .gjs-clm-close {
+  color: var(--emir-gold-muted) !important;
+}
+
+.gjs-clm-tag .gjs-clm-close:hover {
+  color: var(--emir-gold-light) !important;
+}
+
+/* "Selected:" indicator */
+.gjs-clm-sels-info {
+  font-size: 10px !important;
+  color: var(--emir-text-muted) !important;
+  padding: 4px 0 !important;
+}
+
+/* State selector dropdown */
+.gjs-clm-tags .gjs-sm-select,
+.gjs-clm-tags select {
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 4px !important;
+  color: var(--emir-white) !important;
+  font-size: 11px !important;
+  padding: 3px 6px !important;
+}
+
+/* Sector headers */
+.gjs-sm-sector .gjs-sm-sector-title {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--emir-border) !important;
+  padding: 10px 12px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.12em !important;
+  color: var(--emir-gold) !important;
+  cursor: pointer !important;
+  transition: color 0.15s !important;
+}
+
+.gjs-sm-sector .gjs-sm-sector-title:hover {
+  color: var(--emir-gold-light) !important;
+}
+
+/* Sector caret/arrow */
+.gjs-sm-sector .gjs-sm-sector-caret {
+  color: var(--emir-gold-muted) !important;
+  transition: transform 0.15s !important;
+}
+
+/* Sector content area */
+.gjs-sm-sector .gjs-sm-properties {
+  padding: 8px 12px !important;
+  background: var(--emir-surface) !important;
+}
+
+/* Property labels */
+.gjs-sm-label {
+  font-size: 10px !important;
+  color: var(--emir-text-muted) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Property input fields */
+.gjs-sm-input-holder input,
+.gjs-sm-input-holder select,
+.gjs-field input,
+.gjs-field select {
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 3px !important;
+  color: var(--emir-white) !important;
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  transition: border-color 0.15s !important;
+}
+
+.gjs-sm-input-holder input:focus,
+.gjs-field input:focus {
+  border-color: var(--emir-gold) !important;
+  outline: none !important;
+}
+
+/* Dropdown selects */
+.gjs-sm-select select,
+.gjs-sm-unit select {
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 3px !important;
+  color: var(--emir-white) !important;
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+  cursor: pointer !important;
+}
+
+.gjs-sm-select select:hover,
+.gjs-sm-unit select:hover {
+  border-color: var(--emir-gold) !important;
+}
+
+/* Radio / button groups (position: static/relative/absolute/fixed) */
+.gjs-sm-composite .gjs-radio-items,
+.gjs-radio-items {
+  background: var(--emir-surface-light) !important;
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 3px !important;
+  overflow: hidden !important;
+}
+
+.gjs-radio-item {
+  border-right: 1px solid var(--emir-border) !important;
+}
+
+.gjs-radio-item:last-child {
+  border-right: none !important;
+}
+
+.gjs-radio-item input:checked + .gjs-radio-item-label {
+  background: rgba(212, 175, 55, 0.15) !important;
+  color: var(--emir-gold) !important;
+}
+
+.gjs-radio-item-label {
+  color: var(--emir-text-muted) !important;
+  font-size: 10px !important;
+  padding: 4px 8px !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+
+.gjs-radio-item-label:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--emir-white) !important;
+}
+
+/* Composite properties (margin/padding shorthand) */
+.gjs-sm-composite {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Number input arrows/spinners */
+.gjs-field-arrows {
+  color: var(--emir-text-muted) !important;
+}
+
+.gjs-field-arrows:hover {
+  color: var(--emir-gold) !important;
+}
+
+/* Color picker trigger */
+.gjs-field-color .gjs-checker-bg,
+.gjs-field-colorp .gjs-checker-bg {
+  border-radius: 3px !important;
+}
+
+.gjs-field-color .gjs-field-colorp-c {
+  border: 1px solid var(--emir-border) !important;
+  border-radius: 3px !important;
+}
+
+/* ── General GrapesJS overrides ── */
+
+/* Remove default GrapesJS borders that clash */
+.gjs-sm-sector {
+  border: none !important;
+}
+
+/* Scrollbar styling for sidebar */
+.gjs-pn-views-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-thumb {
+  background: var(--emir-border);
+  border-radius: 3px;
+}
+
+.gjs-pn-views-container::-webkit-scrollbar-thumb:hover {
+  background: var(--emir-text-muted);
+}

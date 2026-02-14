@@ -110,6 +110,14 @@ function loadHtmlContent(html: string, filename: string) {
       }
       /* Remove animations that might hide content */
       * { animation: none !important; }
+      /* Override JS-driven animation initial states (opacity:0, translateY, etc.)
+         so content is visible in the editor where scripts may not run */
+      [data-fade-in], [data-split-words],
+      [data-fade-in] > *, [data-split-words] .word {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+      }
     `;
     iframe.contentDocument.head.appendChild(editorOverrides);
 
@@ -216,27 +224,29 @@ async function handleSave() {
     updateTitle();
     showToast('Saved');
 
-    // Sync back to EMIR if this is a proposal file (via server proxy to avoid CORS)
+    // Sync back to EMIR if this is a proposal file with valid sync context
     const proposalMatch = currentFile?.match(/proposal-(\d+)\.html/);
     if (proposalMatch) {
       const proposalId = proposalMatch[1];
-      const emirUrl = localStorage.getItem('emir-api-url') || 'http://localhost:8000';
-      const syncToken = localStorage.getItem(`emir-sync-token-${proposalId}`) || '';
-      const combinedHtml = recombineHtml();
-      fetch('/api/files/emir-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: `${emirUrl}/api/proposals/${proposalId}/import-html`,
-          html: combinedHtml,
-          sync_token: syncToken,
-        }),
-      })
-        .then(res => {
-          if (res.ok) showToast('Synced to EMIR');
-          else showToast('EMIR sync: auth failed', true);
+      const emirUrl = sessionStorage.getItem('emir-api-url');
+      const syncToken = sessionStorage.getItem(`emir-sync-token-${proposalId}`);
+      if (emirUrl && syncToken && isValidEmirUrl(emirUrl)) {
+        const combinedHtml = recombineHtml();
+        fetch('/api/files/emir-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: `${emirUrl}/api/proposals/${proposalId}/import-html`,
+            html: combinedHtml,
+            sync_token: syncToken,
+          }),
         })
-        .catch(() => showToast('EMIR sync failed (offline?)', true));
+          .then(res => {
+            if (res.ok) showToast('Synced to EMIR');
+            else showToast('EMIR sync: auth failed', true);
+          })
+          .catch(() => showToast('EMIR sync failed (offline?)', true));
+      }
     }
   }
 }
@@ -441,7 +451,20 @@ formatSelect?.addEventListener('change', () => {
   setFormat(formatSelect.value as DocFormat);
 });
 
-// --- EMIR Integration: Read query params ---
+// --- EMIR Integration ---
+
+/** Validate EMIR API URL: require https (allow http only for localhost in dev). */
+function isValidEmirUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    const isLocal = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    return u.protocol === 'https:' || (isLocal && u.protocol === 'http:');
+  } catch {
+    return false;
+  }
+}
+
+// Read query params — use sessionStorage (not localStorage) for tokens
 (() => {
   const params = new URLSearchParams(window.location.search);
   const syncToken = params.get('sync_token');
@@ -451,11 +474,11 @@ formatSelect?.addEventListener('change', () => {
   if (syncToken && file) {
     const idMatch = file.match(/proposal-(\d+)\.html/);
     if (idMatch) {
-      localStorage.setItem(`emir-sync-token-${idMatch[1]}`, syncToken);
+      sessionStorage.setItem(`emir-sync-token-${idMatch[1]}`, syncToken);
     }
   }
-  if (emirApi) {
-    localStorage.setItem('emir-api-url', emirApi);
+  if (emirApi && isValidEmirUrl(emirApi)) {
+    sessionStorage.setItem('emir-api-url', emirApi);
   }
 })();
 
@@ -468,21 +491,24 @@ formatSelect?.addEventListener('change', () => {
     try {
       await loadProjectFile(requestedFile);
       return;
-    } catch {
-      // File not found locally — try fetching from EMIR API
-      const emirApi = params.get('emir_api') || localStorage.getItem('emir-api-url');
-      const syncToken = params.get('sync_token');
-      const match = requestedFile.match(/proposal-(\d+)\.html/);
+    } catch (err: any) {
+      // Only attempt EMIR remote fetch on 404 (file not found), not other errors
+      const is404 = err?.message?.includes('404') || err?.message?.includes('not found');
+      if (is404) {
+        const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
+        const syncToken = params.get('sync_token');
+        const match = requestedFile.match(/proposal-(\d+)\.html/);
 
-      if (emirApi && syncToken && match) {
-        const proposalId = match[1];
-        const fetchUrl = `${emirApi}/api/proposals/${proposalId}/export/html-raw?sync_token=${encodeURIComponent(syncToken)}`;
-        try {
-          await api.fetchRemoteFile(fetchUrl, requestedFile);
-          await loadProjectFile(requestedFile);
-          return;
-        } catch (err) {
-          console.warn('Failed to fetch from EMIR API:', err);
+        if (emirApi && syncToken && match && isValidEmirUrl(emirApi)) {
+          const proposalId = match[1];
+          const fetchUrl = `${emirApi}/api/proposals/${proposalId}/export/html-raw?sync_token=${encodeURIComponent(syncToken)}`;
+          try {
+            await api.fetchRemoteFile(fetchUrl, requestedFile);
+            await loadProjectFile(requestedFile);
+            return;
+          } catch (fetchErr) {
+            console.warn('Failed to fetch from EMIR API:', fetchErr);
+          }
         }
       }
 

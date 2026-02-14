@@ -23,10 +23,17 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
 
   // CSS url() values in <style> blocks are NOT affected by <base> —
   // they resolve relative to the document URL, which is about:blank
-  // when using setContent(). Rewrite /project/ URLs to absolute.
+  // when using setContent(). Rewrite /project/ URLs to absolute,
+  // but only within <style> blocks and style="" attributes.
   prepared = prepared.replace(
-    /url\(\s*(['"]?)\/project\//g,
-    `url($1${origin}/project/`
+    /(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (_match, open, css, close) =>
+      open + css.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`) + close
+  );
+  prepared = prepared.replace(
+    /style="([^"]*)"/gi,
+    (_match, styleVal) =>
+      `style="${styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`)}"`
   );
 
   const browser = await puppeteer.launch({ headless: true });

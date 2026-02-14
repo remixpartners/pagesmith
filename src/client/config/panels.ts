@@ -60,8 +60,6 @@ function populateToolbar(editor: Editor) {
       <div class="ps-separator"></div>
       <div class="ps-btn-group">
         <button id="ps-open-sm" class="ps-icon-btn" data-tooltip="Styles">${icons.styles}</button>
-        <button id="ps-open-tm" class="ps-icon-btn" data-tooltip="Settings">${icons.settings}</button>
-        <button id="ps-open-layers" class="ps-icon-btn" data-tooltip="Layers">${icons.layers}</button>
         <button id="ps-open-blocks" class="ps-icon-btn" data-tooltip="Blocks">${icons.blocks}</button>
       </div>
       <div class="ps-separator"></div>
@@ -92,7 +90,7 @@ function populateToolbar(editor: Editor) {
 
   // ── GrapesJS view toggles (mutually exclusive sidebar panels) ──
 
-  const viewCmds = ['open-sm', 'open-tm', 'open-layers', 'open-blocks'];
+  const viewCmds = ['open-sm', 'open-blocks'];
   const viewBtns: Record<string, HTMLElement> = {};
 
   viewCmds.forEach(cmd => {

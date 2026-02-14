@@ -51,16 +51,23 @@ function showToast(message: string, isError = false) {
 }
 
 export function containerImagePlugin(editor: Editor) {
+  // Keep direct refs to injected buttons instead of relying on global IDs
+  let addImgBtnRef: HTMLElement | null = null;
+  let bgBtnRef: HTMLElement | null = null;
+
   function addContainerButtons(component: any) {
     removeContainerButtons();
 
-    const toolbar = document.querySelector('.pagesmith-toolbar-right');
+    // Scope to the editor's container, not global document
+    const editorEl = editor.getContainer();
+    const toolbar = editorEl?.closest('body')?.querySelector('.pagesmith-toolbar-right')
+                    ?? document.querySelector('.pagesmith-toolbar-right');
     if (!toolbar) return;
 
     // "Add Image" button
     const addImgBtn = document.createElement('button');
-    addImgBtn.id = 'ps-add-image';
     addImgBtn.className = 'pagesmith-replace-btn';
+    addImgBtnRef = addImgBtn;
     addImgBtn.textContent = 'Add Image';
     addImgBtn.addEventListener('click', async () => {
       const file = await openFilePicker();
@@ -85,8 +92,8 @@ export function containerImagePlugin(editor: Editor) {
     // "Add Background" / "Remove Background" toggle button
     const hasBg = !!(component.getStyle()['background-image'] || '').match(/url\(/);
     const bgBtn = document.createElement('button');
-    bgBtn.id = 'ps-add-background';
     bgBtn.className = 'pagesmith-replace-btn';
+    bgBtnRef = bgBtn;
     bgBtn.textContent = hasBg ? 'Remove Background' : 'Add Background';
     bgBtn.addEventListener('click', async () => {
       if (hasBg) {
@@ -106,9 +113,9 @@ export function containerImagePlugin(editor: Editor) {
       if (!file) return;
       try {
         const uploadedPath = await api.uploadAsset(file);
-        const src = `/project/${uploadedPath}`;
+        const src = `/project/${encodeURI(uploadedPath)}`;
         component.addStyle({
-          'background-image': `url('${src}')`,
+          'background-image': `url("${src.replace(/"/g, '%22')}")`,
           'background-size': 'cover',
           'background-position': 'center',
           'background-repeat': 'no-repeat',
@@ -123,8 +130,10 @@ export function containerImagePlugin(editor: Editor) {
   }
 
   function removeContainerButtons() {
-    document.getElementById('ps-add-background')?.remove();
-    document.getElementById('ps-add-image')?.remove();
+    bgBtnRef?.remove();
+    bgBtnRef = null;
+    addImgBtnRef?.remove();
+    addImgBtnRef = null;
   }
 
   editor.on('component:selected', (component) => {

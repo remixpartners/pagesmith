@@ -10,7 +10,7 @@ export async function listFiles(): Promise<FileEntry[]> {
 
 export async function readFile(filePath: string): Promise<string> {
   const res = await fetch(`${BASE}/api/files/${filePath}`);
-  if (!res.ok) throw new Error(`Failed to read file: ${filePath}`);
+  if (!res.ok) throw new Error(`Failed to read file (${res.status}): ${filePath}`);
   return res.text();
 }
 
@@ -40,7 +40,11 @@ export async function fetchRemoteFile(url: string, filename: string): Promise<vo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url, filename }),
   });
-  if (!res.ok) throw new Error(`Failed to fetch remote file: ${(await res.json()).message}`);
+  if (!res.ok) {
+    let msg = `status ${res.status}`;
+    try { msg = (await res.json()).message || msg; } catch { /* non-JSON response */ }
+    throw new Error(`Failed to fetch remote file: ${msg}`);
+  }
 }
 
 export async function exportPdf(data: PdfExportRequest): Promise<Blob> {
