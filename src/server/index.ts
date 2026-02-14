@@ -38,6 +38,16 @@ async function start() {
     decorateReply: false,
   });
 
+  // Serve extracted_assets at root level — HTML templates reference these
+  // as relative paths like "extracted_assets/logo.png" which resolve to
+  // /extracted_assets/logo.png in the GrapesJS canvas iframe.
+  const extractedAssetsDir = path.join(projectDir, 'extracted_assets');
+  await app.register(fastifyStatic, {
+    root: extractedAssetsDir,
+    prefix: '/extracted_assets/',
+    decorateReply: false,
+  });
+
   // Serve built client (production mode)
   const clientDir = path.resolve(__dirname, '../client');
   try {

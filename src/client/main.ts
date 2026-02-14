@@ -60,92 +60,9 @@ function loadHtmlContent(html: string, filename: string) {
   editor.setComponents(bodyContent);
   editor.setStyle(css);
 
-  // Inject original document styles into the canvas iframe
-  const iframe = editor.Canvas.getFrameEl();
-  if (iframe?.contentDocument) {
-    // Set base URL for relative asset resolution
-    let baseEl = iframe.contentDocument.querySelector('base');
-    if (!baseEl) {
-      baseEl = iframe.contentDocument.createElement('base');
-      iframe.contentDocument.head.appendChild(baseEl);
-    }
-    baseEl.href = '/project/';
-
-    // Inject original <style> and <link> tags so the canvas renders correctly
-    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-    if (headMatch) {
-      const headContent = headMatch[1];
-      // Extract style tags (but not pagesmith-styles) and link tags
-      const styleTags = headContent.match(/<style(?!\s+id="pagesmith-styles")[^>]*>[\s\S]*?<\/style>/gi) || [];
-      const linkTags = headContent.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi) || [];
-      for (const tag of [...styleTags, ...linkTags]) {
-        const node = iframe.contentDocument.createRange().createContextualFragment(tag);
-        // Tag injected head nodes so they can be cleaned up on next file load
-        for (const child of node.children) {
-          (child as HTMLElement).dataset.pagesmithy = 'injected-head';
-        }
-        iframe.contentDocument.head.appendChild(node);
-      }
-    }
-
-    // Override CSS that hides content via JS (e.g., stacked slides with opacity:0).
-    // GrapesJS strips scripts, so JS-driven visibility never runs.
-    // This makes all elements visible and laid out vertically for editing.
-    const editorOverrides = iframe.contentDocument.createElement('style');
-    editorOverrides.id = 'pagesmith-editor-overrides';
-    editorOverrides.textContent = `
-      /* Make stacked/hidden slides visible for editing */
-      .slide, [class*="slide"] {
-        position: relative !important;
-        opacity: 1 !important;
-        transform: none !important;
-        pointer-events: auto !important;
-        display: block !important;
-        margin-bottom: 24px !important;
-      }
-      /* Make hidden elements visible */
-      [aria-hidden="true"] {
-        display: block !important;
-        opacity: 1 !important;
-      }
-      /* Remove animations that might hide content */
-      * { animation: none !important; }
-      /* Override JS-driven animation initial states (opacity:0, translateY, etc.)
-         so content is visible in the editor where scripts may not run */
-      [data-fade-in], [data-split-words],
-      [data-fade-in] > *, [data-split-words] .word {
-        opacity: 1 !important;
-        transform: none !important;
-        filter: none !important;
-      }
-    `;
-    iframe.contentDocument.head.appendChild(editorOverrides);
-
-    // Re-inject scripts that GrapesJS stripped so JS-driven content renders.
-    // Use DOMParser to safely parse attributes instead of fragile regex.
-    const scriptMatches = html.match(/<script[\s\S]*?<\/script>/gi) || [];
-    const parser = new DOMParser();
-    for (const tag of scriptMatches) {
-      const parsed = parser.parseFromString(tag, 'text/html');
-      const origScript = parsed.querySelector('script');
-      if (!origScript) continue;
-
-      const script = iframe.contentDocument.createElement('script');
-      // Copy all attributes from the DOMParser-parsed node
-      for (const attr of origScript.attributes) {
-        script.setAttribute(attr.name, attr.value);
-      }
-      // Set inline content if no src attribute
-      const rawSrc = script.getAttribute('src')?.trim();
-      if (!rawSrc) {
-        const inline = origScript.textContent?.trim();
-        if (inline) script.textContent = inline;
-        else continue;
-      }
-      script.dataset.pagesmithy = 'injected';
-      iframe.contentDocument.body.appendChild(script);
-    }
-  }
+  // Inject original document styles into the canvas iframe.
+  // Defer to next frame so GrapesJS finishes its internal render cycle first.
+  requestAnimationFrame(() => _injectCanvasHead(html));
 
   currentFile = filename;
   isDirty = false;
@@ -153,6 +70,102 @@ function loadHtmlContent(html: string, filename: string) {
 
   // Auto-detect and set format
   setFormat(detectFormat(html));
+}
+
+/** Inject original <head> styles, links, and scripts into the GrapesJS canvas iframe. */
+function _injectCanvasHead(html: string) {
+  const iframe = editor.Canvas.getFrameEl();
+  if (!iframe?.contentDocument) {
+    // Canvas still not ready — retry once more after a short delay
+    setTimeout(() => {
+      const retry = editor.Canvas.getFrameEl();
+      if (retry?.contentDocument) _applyHeadInjection(retry.contentDocument, html);
+    }, 200);
+    return;
+  }
+  _applyHeadInjection(iframe.contentDocument, html);
+}
+
+function _applyHeadInjection(doc: Document, html: string) {
+  // Clean up any previous injection
+  doc.querySelectorAll('[data-pagesmithy]').forEach(el => el.remove());
+  doc.getElementById('pagesmith-editor-overrides')?.remove();
+
+  // Set base URL for relative asset resolution
+  let baseEl = doc.querySelector('base');
+  if (!baseEl) {
+    baseEl = doc.createElement('base');
+    doc.head.appendChild(baseEl);
+  }
+  baseEl.href = '/project/';
+
+  // Inject original <style> and <link> tags so the canvas renders correctly
+  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (headMatch) {
+    const headContent = headMatch[1];
+    // Extract style tags (but not pagesmith-styles) and link tags
+    const styleTags = headContent.match(/<style(?!\s+id="pagesmith-styles")[^>]*>[\s\S]*?<\/style>/gi) || [];
+    const linkTags = headContent.match(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi) || [];
+    for (const tag of [...styleTags, ...linkTags]) {
+      const node = doc.createRange().createContextualFragment(tag);
+      for (const child of node.children) {
+        (child as HTMLElement).dataset.pagesmithy = 'injected-head';
+      }
+      doc.head.appendChild(node);
+    }
+  }
+
+  // Override CSS that hides content via JS (e.g., stacked slides with opacity:0).
+  const editorOverrides = doc.createElement('style');
+  editorOverrides.id = 'pagesmith-editor-overrides';
+  editorOverrides.textContent = `
+    /* Make stacked/hidden slides visible for editing */
+    .slide, [class*="slide"] {
+      position: relative !important;
+      opacity: 1 !important;
+      transform: none !important;
+      pointer-events: auto !important;
+      display: block !important;
+      margin-bottom: 24px !important;
+    }
+    /* Make hidden elements visible */
+    [aria-hidden="true"] {
+      display: block !important;
+      opacity: 1 !important;
+    }
+    /* Remove animations that might hide content */
+    * { animation: none !important; }
+    /* Override JS-driven animation initial states */
+    [data-fade-in], [data-split-words],
+    [data-fade-in] > *, [data-split-words] .word {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
+  `;
+  doc.head.appendChild(editorOverrides);
+
+  // Re-inject scripts that GrapesJS stripped so JS-driven content renders.
+  const scriptMatches = html.match(/<script[\s\S]*?<\/script>/gi) || [];
+  const parser = new DOMParser();
+  for (const tag of scriptMatches) {
+    const parsed = parser.parseFromString(tag, 'text/html');
+    const origScript = parsed.querySelector('script');
+    if (!origScript) continue;
+
+    const script = doc.createElement('script');
+    for (const attr of origScript.attributes) {
+      script.setAttribute(attr.name, attr.value);
+    }
+    const rawSrc = script.getAttribute('src')?.trim();
+    if (!rawSrc) {
+      const inline = origScript.textContent?.trim();
+      if (inline) script.textContent = inline;
+      else continue;
+    }
+    script.dataset.pagesmithy = 'injected';
+    doc.body.appendChild(script);
+  }
 }
 
 async function loadProjectFile(filePath: string) {
@@ -482,8 +495,8 @@ function isValidEmirUrl(raw: string): boolean {
   }
 })();
 
-// Auto-load: prefer ?file= query param, fallback to first project file
-(async () => {
+// Auto-load: wait for editor canvas to be ready, then load file
+editor.on('load', async () => {
   const params = new URLSearchParams(window.location.search);
   const requestedFile = params.get('file');
 
@@ -520,7 +533,7 @@ function isValidEmirUrl(raw: string): boolean {
   if (files.length > 0) {
     await loadProjectFile(files[0].path);
   }
-})();
+});
 
 // Export for use by toolbar buttons and plugins
 (window as any).__pagesmith = {
