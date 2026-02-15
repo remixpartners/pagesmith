@@ -178,9 +178,10 @@ export function emirRevisionChatPlugin(editor: Editor) {
         const targetComponent = pageEl.classList.contains('page')
           ? selected!
           : findParentPage(selected!);
-        if (targetComponent) {
-          targetComponent.replaceWith(result.section_html);
+        if (!targetComponent) {
+          throw new Error('Could not find the parent page section to replace');
         }
+        targetComponent.replaceWith(result.section_html);
 
         const assistantMsg: EmirMessage = {
           id: Date.now() + 1,

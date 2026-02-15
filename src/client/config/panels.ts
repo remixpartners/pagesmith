@@ -172,9 +172,19 @@ function populateToolbar(editor: Editor) {
       const isOpen = panel?.classList.contains('emir-revision-panel-open') ?? false;
       reviseBtn.classList.toggle('active', isOpen);
     };
-    // Observe the body for panel open/close class changes
-    const observer = new MutationObserver(syncReviseButtonState);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    // Observe body for panel creation, then narrow to panel node
+    let panelObserver: MutationObserver | null = null;
+    const bodyObserver = new MutationObserver(() => {
+      const panel = document.getElementById('emir-revision-panel');
+      if (panel && !panelObserver) {
+        // Panel exists — observe it directly and stop watching body
+        bodyObserver.disconnect();
+        syncReviseButtonState();
+        panelObserver = new MutationObserver(syncReviseButtonState);
+        panelObserver.observe(panel, { attributes: true, attributeFilter: ['class'] });
+      }
+    });
+    bodyObserver.observe(document.body, { childList: true });
   }
 
   // Open the blocks panel by default so the sidebar is visible on load

@@ -11,7 +11,17 @@ const templates = new Map<string, ReturnType<typeof parseHtmlTemplate>>();
 const FETCH_TIMEOUT_MS = 15_000;
 const AI_REVISION_TIMEOUT_MS = 120_000; // 2 min — AI revision calls send full HTML to Claude
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
-const IS_DEV = process.env.NODE_ENV === 'development' || !!process.env.npm_lifecycle_event;
+const MAX_CONCURRENT_REVISIONS = 3;
+const IS_DEV = process.env.NODE_ENV === 'development';
+
+/** Allowed EMIR API origins. Set via EMIR_ALLOWED_ORIGINS env (comma-separated) or allow any validated HTTPS in dev. */
+const EMIR_ALLOWED_ORIGINS: Set<string> | null = (() => {
+  const raw = process.env.EMIR_ALLOWED_ORIGINS;
+  if (!raw) return null; // null = no allowlist enforcement (validates URL structure only)
+  return new Set(raw.split(',').map(s => s.trim().replace(/\/+$/, '').toLowerCase()));
+})();
+
+let activeRevisions = 0;
 
 /** Check if an IP address is in a private/reserved range. */
 function isPrivateIp(ip: string): boolean {
@@ -42,15 +52,18 @@ async function validateExternalUrl(raw: string): Promise<URL> {
     throw new Error('Only HTTPS URLs are allowed');
   }
 
-  // Resolve hostname and block private/reserved IPs
+  // Resolve all DNS records and block if any resolve to private/reserved IPs
   if (!isLocalDev) {
     try {
-      const { address } = await dns.lookup(parsed.hostname);
-      if (isPrivateIp(address)) {
-        throw new Error('URLs resolving to private/internal IPs are not allowed');
+      const results = await dns.lookup(parsed.hostname, { all: true, verbatim: true });
+      if (results.length === 0) throw new Error(`DNS resolution failed for ${parsed.hostname}`);
+      for (const { address } of results) {
+        if (isPrivateIp(address)) {
+          throw new Error('URLs resolving to private/internal IPs are not allowed');
+        }
       }
     } catch (err: any) {
-      if (err.message.includes('private') || err.message.includes('internal')) throw err;
+      if (err.message.includes('private') || err.message.includes('internal') || err.message.includes('DNS resolution')) throw err;
       throw new Error(`DNS resolution failed for ${parsed.hostname}`);
     }
   }
@@ -102,6 +115,18 @@ async function safeReadText(res: Response): Promise<string> {
     reader.releaseLock();
   }
   return chunks.join('');
+}
+
+/** Validate that an EMIR API origin is on the allowlist (if configured). */
+async function validateEmirOrigin(raw: string): Promise<URL> {
+  const parsed = await validateExternalUrl(raw);
+  if (EMIR_ALLOWED_ORIGINS) {
+    const origin = `${parsed.protocol}//${parsed.host}`.toLowerCase();
+    if (!EMIR_ALLOWED_ORIGINS.has(origin)) {
+      throw new Error('EMIR API origin not in allowlist');
+    }
+  }
+  return parsed;
 }
 
 async function listHtmlFiles(dir: string, base: string = ''): Promise<FileEntry[]> {
@@ -263,6 +288,9 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
   // Proxy revision request to EMIR API (avoids CORS — server-to-server request)
   // Accepts structured inputs; constructs EMIR URL server-side to prevent open-proxy abuse.
   app.post('/api/files/emir-revise', async (request, reply) => {
+    if (activeRevisions >= MAX_CONCURRENT_REVISIONS) {
+      return reply.status(429).send({ error: 'too_many_requests', message: 'Too many concurrent revision requests' });
+    }
     const body = request.body as Record<string, unknown> | null;
     if (!body || typeof body !== 'object') {
       return reply.status(400).send({ error: 'bad_request', message: 'JSON body required' });
@@ -278,13 +306,14 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
 
     try {
-      await validateExternalUrl(emir_api);
+      await validateEmirOrigin(emir_api);
     } catch (err: any) {
       return reply.status(400).send({ error: 'bad_request', message: err.message });
     }
 
     const url = `${emir_api.replace(/\/+$/, '')}/api/proposals/${encodeURIComponent(proposal_id)}/revise-html`;
 
+    activeRevisions++;
     try {
       const res = await safeFetch(url, {
         method: 'POST',
@@ -299,11 +328,16 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
       return result;
     } catch (err: any) {
       return reply.status(502).send({ error: 'revision_failed', message: err.message });
+    } finally {
+      activeRevisions--;
     }
   });
 
   // Proxy section-level revision to EMIR API
   app.post('/api/files/emir-revise-section', async (request, reply) => {
+    if (activeRevisions >= MAX_CONCURRENT_REVISIONS) {
+      return reply.status(429).send({ error: 'too_many_requests', message: 'Too many concurrent revision requests' });
+    }
     const body = request.body as Record<string, unknown> | null;
     if (!body || typeof body !== 'object') {
       return reply.status(400).send({ error: 'bad_request', message: 'JSON body required' });
@@ -319,13 +353,14 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
 
     try {
-      await validateExternalUrl(emir_api);
+      await validateEmirOrigin(emir_api);
     } catch (err: any) {
       return reply.status(400).send({ error: 'bad_request', message: err.message });
     }
 
     const url = `${emir_api.replace(/\/+$/, '')}/api/proposals/${encodeURIComponent(proposal_id)}/revise-html-section`;
 
+    activeRevisions++;
     try {
       const res = await safeFetch(url, {
         method: 'POST',
@@ -340,6 +375,8 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
       return result;
     } catch (err: any) {
       return reply.status(502).send({ error: 'section_revision_failed', message: err.message });
+    } finally {
+      activeRevisions--;
     }
   });
 
@@ -358,7 +395,7 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
 
     try {
-      await validateExternalUrl(emir_api);
+      await validateEmirOrigin(emir_api);
     } catch (err: any) {
       return reply.status(400).send({ error: 'bad_request', message: err.message });
     }

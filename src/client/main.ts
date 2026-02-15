@@ -9,6 +9,7 @@ let isDirty = false;
 let originalHtml = '';
 let fileHandle: FileSystemFileHandle | null = null;
 let currentFormat: DocFormat = 'desktop';
+let injectionVersion = 0; // Staleness guard for deferred canvas injection
 
 const editor = createEditor('#gjs');
 
@@ -62,7 +63,11 @@ function loadHtmlContent(html: string, filename: string) {
 
   // Inject original document styles into the canvas iframe.
   // Defer to next frame so GrapesJS finishes its internal render cycle first.
-  requestAnimationFrame(() => _injectCanvasHead(html));
+  const thisVersion = ++injectionVersion;
+  requestAnimationFrame(() => {
+    if (injectionVersion !== thisVersion) return; // Stale — newer load superseded us
+    _injectCanvasHead(html, thisVersion);
+  });
 
   currentFile = filename;
   isDirty = false;
@@ -73,11 +78,12 @@ function loadHtmlContent(html: string, filename: string) {
 }
 
 /** Inject original <head> styles, links, and scripts into the GrapesJS canvas iframe. */
-function _injectCanvasHead(html: string) {
+function _injectCanvasHead(html: string, version: number) {
   const iframe = editor.Canvas.getFrameEl();
   if (!iframe?.contentDocument) {
     // Canvas still not ready — retry once more after a short delay
     setTimeout(() => {
+      if (injectionVersion !== version) return; // Stale
       const retry = editor.Canvas.getFrameEl();
       if (retry?.contentDocument) _applyHeadInjection(retry.contentDocument, html);
     }, 200);
@@ -191,7 +197,10 @@ async function openFromDisk() {
 // --- HTML Recombination (client-side) ---
 
 function recombineHtml(): string {
-  const body = editor.getHtml();
+  let body = editor.getHtml();
+  // GrapesJS may wrap output in <body> tags — strip them to avoid double <body>
+  const innerMatch = body.match(/^<body[^>]*>([\s\S]*)<\/body>$/i);
+  if (innerMatch) body = innerMatch[1];
   const css = editor.getCss() ?? '';
 
   if (originalHtml) {
@@ -202,10 +211,10 @@ function recombineHtml(): string {
     const scriptBlock = scriptTags.join('\n');
 
     let result = originalHtml;
-    // Replace body content but preserve scripts
+    // Replace body content but preserve scripts (use replacer function to avoid $ token expansion)
     result = result.replace(
       /(<body[^>]*>)[\s\S]*(<\/body>)/i,
-      `$1\n${body}\n${scriptBlock}\n$2`
+      (_match, open, close) => `${open}\n${body}\n${scriptBlock}\n${close}`
     );
     // Remove existing pagesmith-styles
     result = result.replace(/<style\s+id="pagesmith-styles"[^>]*>[\s\S]*?<\/style>\s*/i, '');
@@ -512,7 +521,9 @@ editor.on('load', async () => {
   if (requestedFile) {
     // When opened from EMIR (emir_api + sync_token present), always fetch fresh HTML
     // to ensure we have the latest template/content, not a stale local copy.
-    const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
+    // Require explicit emir_api from URL — no sessionStorage fallback for auto-refresh
+    // to prevent token leakage to an attacker-seeded session host.
+    const emirApi = params.get('emir_api');
     const syncToken = params.get('sync_token');
     const match = requestedFile.match(/proposal-(\d+)\.html/);
 
