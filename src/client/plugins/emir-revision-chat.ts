@@ -62,7 +62,7 @@ export function emirRevisionChatPlugin(editor: Editor) {
         <textarea
           id="emir-revision-input"
           class="emir-revision-input"
-          placeholder="Describe your changes... e.g. 'Shorten the timeline to 8 weeks'"
+          placeholder="Select a page section then describe changes, or type for full-doc revision"
           rows="2"
         ></textarea>
         <button id="emir-revision-send" class="emir-revision-send" title="Send">
@@ -154,27 +154,60 @@ export function emirRevisionChatPlugin(editor: Editor) {
     renderMessages();
     inputEl.value = '';
 
-    // Get current HTML from editor (includes any manual edits)
-    const currentHtml = getCurrentHtml();
+    // Check if a page-level component is selected for section-level revision
+    const selected = editor.getSelected();
+    const pageEl = selected?.getEl();
+    const isPageSection = pageEl && (
+      pageEl.classList.contains('page') ||
+      pageEl.closest('.page') !== null
+    );
 
     setLoading(true);
     try {
-      const result = await api.emirRevise(ctx.emirApi, ctx.proposalId, currentHtml, message, ctx.syncToken);
+      if (isPageSection && pageEl) {
+        // Section-level revision — send only the selected section's HTML
+        const sectionHtml = pageEl.classList.contains('page')
+          ? pageEl.outerHTML
+          : (pageEl.closest('.page') as HTMLElement)?.outerHTML || pageEl.outerHTML;
 
-      // Add assistant message
-      const assistantMsg: EmirMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: result.changes_summary,
-        phase: 'revision',
-        created_at: new Date().toISOString(),
-      };
-      messages.push(assistantMsg);
+        const result = await api.emirReviseSection(
+          ctx.emirApi, ctx.proposalId, sectionHtml, message, ctx.syncToken
+        );
 
-      // Load revised HTML into editor
-      loadRevisedHtml(result.html);
+        // Replace the section in the editor
+        const targetComponent = pageEl.classList.contains('page')
+          ? selected!
+          : findParentPage(selected!);
+        if (targetComponent) {
+          targetComponent.replaceWith(result.section_html);
+        }
 
-      showToast(`Revised: ${result.sections_changed.join(', ') || 'proposal'}`);
+        const assistantMsg: EmirMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: result.changes_summary,
+          phase: 'revision',
+          created_at: new Date().toISOString(),
+        };
+        messages.push(assistantMsg);
+        showToast('Section revised');
+      } else {
+        // Full-document revision (existing behavior)
+        const currentHtml = getCurrentHtml();
+        const result = await api.emirRevise(ctx.emirApi, ctx.proposalId, currentHtml, message, ctx.syncToken);
+
+        const assistantMsg: EmirMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: result.changes_summary,
+          phase: 'revision',
+          created_at: new Date().toISOString(),
+        };
+        messages.push(assistantMsg);
+
+        loadRevisedHtml(result.html);
+        showToast(`Revised: ${result.sections_changed.join(', ') || 'proposal'}`);
+      }
     } catch (err: any) {
       const errorMsg: EmirMessage = {
         id: Date.now() + 1,
@@ -189,6 +222,17 @@ export function emirRevisionChatPlugin(editor: Editor) {
       setLoading(false);
       renderMessages();
     }
+  }
+
+  /** Walk up GrapesJS component tree to find the .page parent */
+  function findParentPage(component: any): any {
+    let current = component;
+    while (current) {
+      const el = current.getEl?.();
+      if (el?.classList?.contains('page')) return current;
+      current = current.parent?.();
+    }
+    return null;
   }
 
   function getCurrentHtml(): string {

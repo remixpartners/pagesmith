@@ -195,9 +195,18 @@ function recombineHtml(): string {
   const css = editor.getCss() ?? '';
 
   if (originalHtml) {
+    // Extract <script> tags from original body to re-inject
+    const origBodyMatch = originalHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    const origBodyContent = origBodyMatch ? origBodyMatch[1] : '';
+    const scriptTags = origBodyContent.match(/<script[\s\S]*?<\/script>/gi) || [];
+    const scriptBlock = scriptTags.join('\n');
+
     let result = originalHtml;
-    // Replace body content (preserve body attributes)
-    result = result.replace(/(<body[^>]*>)[\s\S]*(<\/body>)/i, `$1\n${body}\n$2`);
+    // Replace body content but preserve scripts
+    result = result.replace(
+      /(<body[^>]*>)[\s\S]*(<\/body>)/i,
+      `$1\n${body}\n${scriptBlock}\n$2`
+    );
     // Remove existing pagesmith-styles
     result = result.replace(/<style\s+id="pagesmith-styles"[^>]*>[\s\S]*?<\/style>\s*/i, '');
     // Insert new pagesmith-styles before </head>

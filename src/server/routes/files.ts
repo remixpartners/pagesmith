@@ -174,7 +174,7 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
       output = recombineHtml(template, html, css);
     } else {
       output = recombineHtml(
-        { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '' },
+        { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '', bodyScripts: '' },
         html,
         css
       );
@@ -302,6 +302,47 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
   });
 
+  // Proxy section-level revision to EMIR API
+  app.post('/api/files/emir-revise-section', async (request, reply) => {
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== 'object') {
+      return reply.status(400).send({ error: 'bad_request', message: 'JSON body required' });
+    }
+    const { emir_api, proposal_id, section_html, message, sync_token } = body as {
+      emir_api: string; proposal_id: string; section_html: string; message: string; sync_token: string;
+    };
+    if (!emir_api || !proposal_id || !section_html || !message || !sync_token) {
+      return reply.status(400).send({
+        error: 'bad_request',
+        message: 'emir_api, proposal_id, section_html, message, and sync_token required',
+      });
+    }
+
+    try {
+      await validateExternalUrl(emir_api);
+    } catch (err: any) {
+      return reply.status(400).send({ error: 'bad_request', message: err.message });
+    }
+
+    const url = `${emir_api.replace(/\/+$/, '')}/api/proposals/${encodeURIComponent(proposal_id)}/revise-html-section`;
+
+    try {
+      const res = await safeFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section_html, message, sync_token }),
+      }, AI_REVISION_TIMEOUT_MS);
+      if (!res.ok) {
+        const errBody = await safeReadText(res).catch(() => 'Unknown error');
+        return reply.status(res.status).send({ error: 'emir_error', message: errBody.slice(0, 1000) });
+      }
+      const result = await res.json();
+      return result;
+    } catch (err: any) {
+      return reply.status(502).send({ error: 'section_revision_failed', message: err.message });
+    }
+  });
+
   // Proxy message fetch to EMIR API (avoids CORS)
   // Accepts structured inputs; constructs EMIR URL server-side.
   app.post('/api/files/emir-messages', async (request, reply) => {
@@ -347,7 +388,7 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
     }
 
     const output = recombineHtml(
-      { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '' },
+      { doctype: '<!DOCTYPE html>', htmlAttributes: '', head: '', bodyAttributes: '', bodyScripts: '' },
       html,
       css
     );

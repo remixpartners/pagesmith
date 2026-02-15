@@ -27,18 +27,33 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
   // but only within <style> blocks and style="" attributes.
   prepared = prepared.replace(
     /(<style[^>]*>)([\s\S]*?)(<\/style>)/gi,
-    (_match, open, css, close) =>
-      open + css.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`) + close
+    (_match, open, css, close) => {
+      let rewritten = css.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`);
+      rewritten = rewritten.replace(/url\(\s*(['"]?)extracted_assets\//g, `url($1${origin}/extracted_assets/`);
+      return open + rewritten + close;
+    }
   );
   prepared = prepared.replace(
     /style="([^"]*)"/gi,
-    (_match, styleVal) =>
-      `style="${styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`)}"`
+    (_match, styleVal) => {
+      let rewritten = styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`);
+      rewritten = rewritten.replace(/url\(\s*(['"]?)extracted_assets\//g, `url($1${origin}/extracted_assets/`);
+      return `style="${rewritten}"`;
+    }
   );
   prepared = prepared.replace(
     /style='([^']*)'/gi,
-    (_match, styleVal) =>
-      `style='${styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`)}'`
+    (_match, styleVal) => {
+      let rewritten = styleVal.replace(/url\(\s*(['"]?)\/project\//g, `url($1${origin}/project/`);
+      rewritten = rewritten.replace(/url\(\s*(['"]?)extracted_assets\//g, `url($1${origin}/extracted_assets/`);
+      return `style='${rewritten}'`;
+    }
+  );
+
+  // Rewrite <img src="extracted_assets/..."> to absolute
+  prepared = prepared.replace(
+    /src=(['"])extracted_assets\//gi,
+    `src=$1${origin}/extracted_assets/`
   );
 
   const browser = await puppeteer.launch({ headless: true });

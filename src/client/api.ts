@@ -119,6 +119,37 @@ export async function emirRevise(
   return res.json();
 }
 
+export interface EmirSectionRevisionResponse {
+  section_html: string;
+  changes_summary: string;
+}
+
+export async function emirReviseSection(
+  emirApi: string,
+  proposalId: string,
+  sectionHtml: string,
+  message: string,
+  syncToken: string,
+): Promise<EmirSectionRevisionResponse> {
+  const res = await fetch(`${BASE}/api/files/emir-revise-section`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      emir_api: emirApi,
+      proposal_id: proposalId,
+      section_html: sectionHtml,
+      message,
+      sync_token: syncToken,
+    }),
+  });
+  if (!res.ok) {
+    let msg = `status ${res.status}`;
+    try { msg = (await res.json()).message || msg; } catch { /* non-JSON */ }
+    throw new Error(`Section revision failed: ${msg}`);
+  }
+  return res.json();
+}
+
 export async function emirGetMessages(emirApi: string, proposalId: string, syncToken: string): Promise<EmirMessage[]> {
   const res = await fetch(`${BASE}/api/files/emir-messages`, {
     method: 'POST',

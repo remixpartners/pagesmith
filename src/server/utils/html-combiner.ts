@@ -3,6 +3,7 @@ export interface HtmlTemplate {
   htmlAttributes: string;
   head: string;
   bodyAttributes: string;
+  bodyScripts: string;
 }
 
 export function parseHtmlTemplate(html: string): HtmlTemplate {
@@ -21,7 +22,13 @@ export function parseHtmlTemplate(html: string): HtmlTemplate {
   const bodyAttrMatch = html.match(/<body([^>]*)>/i);
   const bodyAttributes = bodyAttrMatch ? bodyAttrMatch[1].trim() : '';
 
-  return { doctype, htmlAttributes, head, bodyAttributes };
+  // Extract <script> tags from body to preserve them across saves
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  const bodyContent = bodyMatch ? bodyMatch[1] : '';
+  const scriptTags = bodyContent.match(/<script[\s\S]*?<\/script>/gi) || [];
+  const bodyScripts = scriptTags.join('\n');
+
+  return { doctype, htmlAttributes, head, bodyAttributes, bodyScripts };
 }
 
 export function recombineHtml(
@@ -35,6 +42,8 @@ export function recombineHtml(
     ? `\n<style id="pagesmith-styles">\n${css}\n</style>`
     : '';
 
+  const scriptBlock = template.bodyScripts || '';
+
   const lines = [
     template.doctype,
     `<html${htmlAttr}>`,
@@ -44,6 +53,7 @@ export function recombineHtml(
     '</head>',
     `<body${bodyAttr}>`,
     bodyHtml,
+    scriptBlock,
     '</body>',
     '</html>',
   ].filter(Boolean);
