@@ -9,6 +9,7 @@ import type { FileEntry, SaveRequest, SaveAsRequest } from '../../shared/types.j
 const templates = new Map<string, ReturnType<typeof parseHtmlTemplate>>();
 
 const FETCH_TIMEOUT_MS = 15_000;
+const AI_REVISION_TIMEOUT_MS = 120_000; // 2 min — AI revision calls send full HTML to Claude
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
 const IS_DEV = process.env.NODE_ENV === 'development' || !!process.env.npm_lifecycle_event;
 
@@ -58,9 +59,9 @@ async function validateExternalUrl(raw: string): Promise<URL> {
 }
 
 /** Fetch with timeout, redirect blocking, and size limit. */
-async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+async function safeFetch(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       ...init,
@@ -289,7 +290,7 @@ export function registerFileRoutes(app: FastifyInstance, projectDir: string) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ html, message, sync_token }),
-      });
+      }, AI_REVISION_TIMEOUT_MS);
       if (!res.ok) {
         const errBody = await safeReadText(res).catch(() => 'Unknown error');
         return reply.status(res.status).send({ error: 'emir_error', message: errBody.slice(0, 1000) });
