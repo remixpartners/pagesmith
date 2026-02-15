@@ -501,30 +501,28 @@ editor.on('load', async () => {
   const requestedFile = params.get('file');
 
   if (requestedFile) {
+    // When opened from EMIR (emir_api + sync_token present), always fetch fresh HTML
+    // to ensure we have the latest template/content, not a stale local copy.
+    const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
+    const syncToken = params.get('sync_token');
+    const match = requestedFile.match(/proposal-(\d+)\.html/);
+
+    if (emirApi && syncToken && match && isValidEmirUrl(emirApi)) {
+      const proposalId = match[1];
+      const fetchUrl = `${emirApi}/api/proposals/${proposalId}/export/html-raw?sync_token=${encodeURIComponent(syncToken)}`;
+      try {
+        await api.fetchRemoteFile(fetchUrl, requestedFile);
+        await loadProjectFile(requestedFile);
+        return;
+      } catch (fetchErr) {
+        console.warn('Failed to fetch fresh HTML from EMIR API, falling back to local:', fetchErr);
+      }
+    }
+
     try {
       await loadProjectFile(requestedFile);
       return;
     } catch (err: any) {
-      // Only attempt EMIR remote fetch on 404 (file not found), not other errors
-      const is404 = err?.status === 404;
-      if (is404) {
-        const emirApi = params.get('emir_api') || sessionStorage.getItem('emir-api-url');
-        const syncToken = params.get('sync_token');
-        const match = requestedFile.match(/proposal-(\d+)\.html/);
-
-        if (emirApi && syncToken && match && isValidEmirUrl(emirApi)) {
-          const proposalId = match[1];
-          const fetchUrl = `${emirApi}/api/proposals/${proposalId}/export/html-raw?sync_token=${encodeURIComponent(syncToken)}`;
-          try {
-            await api.fetchRemoteFile(fetchUrl, requestedFile);
-            await loadProjectFile(requestedFile);
-            return;
-          } catch (fetchErr) {
-            console.warn('Failed to fetch from EMIR API:', fetchErr);
-          }
-        }
-      }
-
       console.warn(`Could not load requested file: ${requestedFile}`);
     }
   }
