@@ -16,6 +16,11 @@ const editor = createEditor('#gjs');
 // --- Format Detection & Control ---
 
 function detectFormat(html: string): DocFormat {
+  // Ignore print-only CSS when guessing the on-screen format: page-break rules
+  // inside @media print blocks describe how the doc PRINTS, not how it displays.
+  // Without this, long scrolling web reports with print styles get misdetected
+  // as A4 and open zoomed out to a speck.
+  html = html.replace(/@media\s+print\s*\{[\s\S]*?\n\s*\}/g, '');
   // Check for slide-like patterns: viewport-sized sections, slide classes
   if (/class="[^"]*slide/i.test(html) || /width:\s*13\.333in/i.test(html)) return '16:9';
   if (/width:\s*10in;\s*height:\s*7\.5in/i.test(html)) return '4:3';
