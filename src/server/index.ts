@@ -25,6 +25,7 @@ async function start() {
     origin: [
       `http://127.0.0.1:${port}`,
       `http://localhost:${port}`,
+      ...(process.env.HOST ? [`http://${process.env.HOST}:${port}`, `http://buzz:${port}`] : []),
       'http://127.0.0.1:5173',
       'http://localhost:5173',
     ],
@@ -65,7 +66,8 @@ async function start() {
   registerAssetRoutes(app, projectDir);
   registerExportRoutes(app, port);
 
-  await app.listen({ port, host: '127.0.0.1' });
+  const host = process.env.HOST || '127.0.0.1';
+  await app.listen({ port, host });
   console.log(`\nPageSmith running at http://127.0.0.1:${port}`);
   console.log(`Project directory: ${projectDir}\n`);
 
