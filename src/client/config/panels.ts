@@ -72,7 +72,7 @@ function populateToolbar(editor: Editor) {
         <button id="ps-save" class="ps-btn" title="Save (Cmd+S)">Save</button>
         <button id="ps-save-as" class="ps-btn" title="Save As (Cmd+Shift+S)">Save As</button>
         <button id="ps-export-pdf" class="ps-btn ps-btn-primary" title="Export PDF">Export PDF</button>
-        <button id="ps-finalize" class="ps-btn ps-btn-primary" style="display:none" title="Save this file back to its Google Drive original (brand check runs first)">Finalize → Drive</button>
+        <button id="ps-finalize" class="ps-btn ps-btn-primary" style="display:none" title="Save this file back to its Google Drive original (revision history kept)">Finalize → Drive</button>
       </div>
     </div>
   `;
@@ -102,7 +102,7 @@ function populateToolbar(editor: Editor) {
       const ps = (window as any).__pagesmith;
       const file = ps?.currentFile || ps?.state?.currentFile || '';
       if (!file) { alert('Open a file first.'); return; }
-      if (!confirm(`Finalize "${file}" back to Google Drive? This runs the brand check, then updates the original Drive file (revision history kept).`)) return;
+      if (!confirm(`Finalize "${file}" back to Google Drive? This updates the original Drive file in place (revision history kept).`)) return;
       finBtn.disabled = true; const prev = finBtn.textContent; finBtn.textContent = 'Finalizing…';
       try {
         await ps?.handleSave?.();
