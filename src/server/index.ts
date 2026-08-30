@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { registerFileRoutes } from './routes/files.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerExportRoutes } from './routes/export.js';
+import { registerFinalizeRoutes } from './routes/finalize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -65,6 +66,7 @@ async function start() {
   registerFileRoutes(app, projectDir);
   registerAssetRoutes(app, projectDir);
   registerExportRoutes(app, port);
+  registerFinalizeRoutes(app, projectDir);
 
   const host = process.env.HOST || '127.0.0.1';
   await app.listen({ port, host });

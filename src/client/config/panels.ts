@@ -72,6 +72,7 @@ function populateToolbar(editor: Editor) {
         <button id="ps-save" class="ps-btn" title="Save (Cmd+S)">Save</button>
         <button id="ps-save-as" class="ps-btn" title="Save As (Cmd+Shift+S)">Save As</button>
         <button id="ps-export-pdf" class="ps-btn ps-btn-primary" title="Export PDF">Export PDF</button>
+        <button id="ps-finalize" class="ps-btn ps-btn-primary" style="display:none" title="Save this file back to its Google Drive original (brand check runs first)">Finalize → Drive</button>
       </div>
     </div>
   `;
@@ -90,6 +91,32 @@ function populateToolbar(editor: Editor) {
   container.querySelector('#ps-export-pdf')?.addEventListener('click', () => {
     (window as any).__pagesmith?.handleExportPdf();
   });
+  // Remix patch: one-click finalize back to Google Drive (visible only when the
+  // host configured PS_FINALIZE_CMD -- see server/routes/finalize.ts).
+  const finBtn = container.querySelector('#ps-finalize') as HTMLButtonElement | null;
+  if (finBtn) {
+    fetch('/api/finalize/status').then(r => r.json()).then(st => {
+      if (st.enabled) finBtn.style.display = '';
+    }).catch(() => {});
+    finBtn.addEventListener('click', async () => {
+      const ps = (window as any).__pagesmith;
+      const file = ps?.currentFile || ps?.state?.currentFile || '';
+      if (!file) { alert('Open a file first.'); return; }
+      if (!confirm(`Finalize "${file}" back to Google Drive? This runs the brand check, then updates the original Drive file (revision history kept).`)) return;
+      finBtn.disabled = true; const prev = finBtn.textContent; finBtn.textContent = 'Finalizing…';
+      try {
+        await ps?.handleSave?.();
+        const r = await fetch('/api/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: file }) });
+        const d = await r.json();
+        finBtn.textContent = d.ok ? 'Finalized ✓' : 'Finalize failed';
+        if (!d.ok) alert('Finalize failed:\n' + (d.output || d.error || 'unknown'));
+      } catch (e) {
+        finBtn.textContent = 'Finalize failed'; alert('Finalize failed: ' + e);
+      } finally {
+        setTimeout(() => { finBtn.textContent = prev; finBtn.disabled = false; }, 4000);
+      }
+    });
+  }
   container.querySelector('#ps-undo')?.addEventListener('click', () => editor.UndoManager.undo());
   container.querySelector('#ps-redo')?.addEventListener('click', () => editor.UndoManager.redo());
 

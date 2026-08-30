@@ -561,6 +561,7 @@ editor.on('load', async () => {
 // Export for use by toolbar buttons and plugins
 (window as any).__pagesmith = {
   editor,
+  get currentFile() { return currentFile; },
   handleSave,
   handleSaveAs,
   handleExportPdf,
