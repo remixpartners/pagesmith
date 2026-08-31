@@ -16,7 +16,9 @@ export function registerFinalizeRoutes(app: FastifyInstance, baseDir: string) {
   const cmd = process.env.PS_FINALIZE_CMD || '';
   const slug = process.env.PS_FINALIZE_SLUG || '';
 
-  app.get('/api/finalize/status', async () => ({ enabled: Boolean(cmd), slug }));
+  // enabled requires BOTH the command and a slug: the button's POST path has no
+  // --file-id fallback, so an empty slug would always fail at click time.
+  app.get('/api/finalize/status', async () => ({ enabled: Boolean(cmd && slug), slug }));
 
   app.post<{ Body: { path?: string } }>('/api/finalize', async (request, reply) => {
     if (!cmd) return reply.code(404).send({ error: 'finalize not configured' });
