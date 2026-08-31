@@ -37,3 +37,8 @@ npm run dev
 
 - `--dir <path>` — Project directory (default: current directory)
 - `--port <number>` — Server port (default: 3000)
+- `--host <address>` — Address to bind (default: 127.0.0.1). Use this to reach
+  PageSmith from another device — e.g. `--host 0.0.0.0` to serve on the local
+  network, or a Tailscale address to serve just over the tailnet. The bound
+  address is added to the CORS allowlist automatically. Only bind beyond
+  loopback on a network you trust; PageSmith has no authentication.
