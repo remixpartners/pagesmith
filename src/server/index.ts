@@ -16,17 +16,31 @@ const dirIndex = args.indexOf('--dir');
 const projectDir = dirIndex !== -1 ? path.resolve(args[dirIndex + 1]) : path.resolve('.');
 const portIndex = args.indexOf('--port');
 const port = portIndex !== -1 ? parseInt(args[portIndex + 1], 10) : 3000;
+const hostIndex = args.indexOf('--host');
+const host = hostIndex !== -1 ? args[hostIndex + 1] : '127.0.0.1';
+
+// Wildcard binds have no usable origin of their own, so links and the CORS
+// entry fall back to loopback for them.
+const isWildcardHost = host === '0.0.0.0' || host === '::';
+const displayHost = isWildcardHost ? '127.0.0.1' : host;
 
 const app = Fastify({ logger: true });
 
 async function start() {
   // Plugins
   await app.register(fastifyCors, {
+    // Loopback stays allowed whatever --host is set to, so the dev client on
+    // 5173 keeps working. A non-loopback --host adds exactly its own origin --
+    // never a wildcard, which would undo the origin allowlist this file relies
+    // on elsewhere for SSRF protection.
     origin: [
       `http://127.0.0.1:${port}`,
       `http://localhost:${port}`,
       'http://127.0.0.1:5173',
       'http://localhost:5173',
+      ...(displayHost === '127.0.0.1'
+        ? []
+        : [`http://${displayHost}:${port}`, `http://${displayHost}:5173`]),
     ],
   });
   await app.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } });
@@ -65,15 +79,15 @@ async function start() {
   registerAssetRoutes(app, projectDir);
   registerExportRoutes(app, port);
 
-  await app.listen({ port, host: '127.0.0.1' });
-  console.log(`\nPageSmith running at http://127.0.0.1:${port}`);
+  await app.listen({ port, host });
+  console.log(`\nPageSmith running at http://${displayHost}:${port}`);
   console.log(`Project directory: ${projectDir}\n`);
 
   // Auto-open browser (skip in test and dev mode where Vite serves the frontend)
   const isDevBackend = process.env.npm_lifecycle_event === 'dev:server';
   if (process.env.NODE_ENV !== 'test' && !isDevBackend) {
     const open = (await import('open')).default;
-    await open(`http://127.0.0.1:${port}`);
+    await open(`http://${displayHost}:${port}`);
   }
 }
 
